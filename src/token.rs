@@ -1,0 +1,148 @@
+use std::fmt;
+
+use phf::phf_map;
+use strum_macros::Display;
+
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Display)]
+pub enum TokenType {
+    // single character tokens
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    SemiColon,
+    Slash,
+    Star,
+    // one or two character tokens
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    // literals
+    Identifier,
+    String_,
+    Number,
+    // keywords
+    And,
+    Class,
+    Else,
+    False,
+    Fun,
+    For,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
+
+    Eof,
+}
+
+pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
+    "and" => TokenType::And,
+    "class" => TokenType::Class,
+    "else" => TokenType::Else,
+    "false" => TokenType::False,
+    "for" => TokenType::For,
+    "fun" => TokenType::Fun,
+    "if" => TokenType::If,
+    "nil" => TokenType::Nil,
+    "or" => TokenType::Or,
+    "print" => TokenType::Print,
+    "return" => TokenType::Return,
+    "super" => TokenType::Super,
+    "var" => TokenType::Var,
+    "while" => TokenType::While,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literals {
+    Identifier(String),
+    String_(String),
+    Number(f64),
+    // TODO: we should respectively give integer and float!
+}
+
+impl fmt::Display for Literals {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Identifier(ident) => write!(f, "Identifier: {ident}"),
+            Self::String_(content) => write!(f, "String: {content}"),
+            Self::Number(x) => write!(f, "Number: {x}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Token {
+    type_: TokenType,
+    lexeme: String,
+    literal: Option<Literals>,
+    line: usize,
+}
+
+impl Token {
+    pub fn new(type_: TokenType, lexeme: String, literal: Option<Literals>, line: usize) -> Self {
+        Self {
+            type_,
+            lexeme,
+            literal,
+            line,
+        }
+    }
+
+    pub fn get_type(&self) -> TokenType {
+        self.type_
+    }
+
+    pub fn get_lexeme(&self) -> &str {
+        &self.lexeme
+    }
+
+    pub fn get_literal(&self) -> Option<&Literals> {
+        match &self.literal {
+            None => None,
+            Some(l) => Some(l),
+        }
+    }
+
+    pub fn get_line(&self) -> usize {
+        self.line
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.literal {
+            Some(literal) => write!(f, "{} {} {}", self.type_, self.lexeme, literal),
+            None => write!(f, "{} {}", self.type_, self.lexeme),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_keywords_hashmap() {
+        let print_str = "print";
+        assert_eq!(TokenType::Print, KEYWORDS[print_str]);
+        let while_str = "while".to_string();
+        assert_eq!(TokenType::While, KEYWORDS[&while_str]);
+    }
+}
