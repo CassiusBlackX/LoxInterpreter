@@ -3,6 +3,7 @@ mod expression;
 mod error;
 mod scanner;
 mod token;
+mod parser;
 
 use std::io::{self, Read, Write};
 

@@ -1,10 +1,11 @@
 /*
-* expresion -> literal | unary | binary | grouping ;
-* literal -> NUMBER | STRING | "true" | "false" | "nil" ;
-* grouping -> "(" expresion ")" ;
-* unary -> ("-" | "!") expresion ;
-* binary -> expresion operator expresion ;
-* operator -> "==" | "1=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" ;
+* expression -> equality ;
+* equality -> comparison ( ( "!=" | "==" ) comparison )* ;
+* comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+* term -> factor ( ( "-" | "+" ) factor )* ;
+* factor -> unary ( ( "/" | "*" ) unary )* ;
+* unary -> ("!" | "-") unary | primary ;
+* primary -> NUMBER | STRING | BOOL | NIL | "(" expression ")" ;
 */
 
 use crate::token::{LiteralType, Token};

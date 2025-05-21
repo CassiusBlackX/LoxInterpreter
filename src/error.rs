@@ -1,9 +1,12 @@
-pub fn handle_error(message: String) {
+use crate::token::{Token, TokenType};
+
+pub fn handle_error(message: &str) {
     eprintln!("{}", message);
     std::process::exit(65);
 }
 
-pub fn report(line: usize, message: String) {
+pub fn report(line: usize, message: &str) {
     let err = format!("[Line {line}] Error: {message}");
-    handle_error(err);
+    eprintln!("{}", err);
 }
+
