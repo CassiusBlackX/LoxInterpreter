@@ -1,4 +1,4 @@
-use crate::token::{KEYWORDS, Literals, Token, TokenType};
+use crate::token::{KEYWORDS, LiteralType, Token, TokenType};
 
 pub struct Scanner {
     source: String,
@@ -146,7 +146,7 @@ impl Scanner {
         self.source.chars().nth(self.current + 1).unwrap()
     }
 
-    fn add_token(&mut self, type_: TokenType, literal: Option<Literals>) {
+    fn add_token(&mut self, type_: TokenType, literal: Option<LiteralType>) {
         let lexeme = self.source[self.start..self.current].to_string();
         self.tokens
             .push(Token::new(type_, lexeme, literal, self.line));
@@ -165,7 +165,7 @@ impl Scanner {
         }
         self.advance(); // consume the closing '"'
         let value = self.source[self.start + 1..self.current - 1].to_string();
-        self.add_token(TokenType::String_, Some(Literals::String_(value)));
+        self.add_token(TokenType::String_, Some(LiteralType::String_(value)));
     }
 
     fn number(&mut self) {
@@ -180,7 +180,7 @@ impl Scanner {
         }
         let value = self.source[self.start..self.current].to_string();
         let value = value.parse::<f64>().unwrap();
-        self.add_token(TokenType::Number, Some(Literals::Number(value)));
+        self.add_token(TokenType::Number, Some(LiteralType::Number(value)));
     }
 
     fn identifier(&mut self) {
@@ -189,11 +189,20 @@ impl Scanner {
         }
         let value = self.source[self.start..self.current].to_string();
         let type_ = KEYWORDS.get(&value);
-        if let Some(&ky_type) = type_ {
-            self.add_token(ky_type, None);
-        } else {
-            self.add_token(TokenType::Identifier, Some(Literals::Identifier(value)));
+        match type_ {
+            Some(TokenType::True) => self.add_token(TokenType::True, Some(LiteralType::Bool(true))),
+            Some(TokenType::False) => {
+                self.add_token(TokenType::False, Some(LiteralType::Bool(false)))
+            }
+            Some(TokenType::Nil) => self.add_token(TokenType::Nil, Some(LiteralType::Nil)),
+            Some(&x) => self.add_token(x, None),
+            None => self.add_token(TokenType::Identifier, Some(LiteralType::Identifier(value))),
         }
+        // if let Some(&ky_type) = type_ {
+        //     self.add_token(ky_type, None);
+        // } else {
+        //     self.add_token(TokenType::Identifier, Some(LiteralType::Identifier(value)));
+        // }
     }
 }
 
@@ -223,7 +232,7 @@ mod test {
         let token_a = Token::new(
             TokenType::Identifier,
             "a".to_string(),
-            Some(Literals::Identifier("a".to_string())),
+            Some(LiteralType::Identifier("a".to_string())),
             1,
         );
         assert_eq!(token_a.get_type(), tokens[0].get_type());
@@ -233,7 +242,7 @@ mod test {
         let token_b = Token::new(
             TokenType::Identifier,
             "b".to_string(),
-            Some(Literals::Identifier("b".to_string())),
+            Some(LiteralType::Identifier("b".to_string())),
             2,
         );
         assert_eq!(token_b.get_type(), tokens[1].get_type());
@@ -255,7 +264,7 @@ mod test {
         let token_int = Token::new(
             TokenType::Number,
             "123456".to_string(),
-            Some(Literals::Number(123456 as f64)),
+            Some(LiteralType::Number(123456 as f64)),
             1,
         );
         assert_eq!(token_int.get_type(), tokens[0].get_type());
@@ -265,7 +274,7 @@ mod test {
         let token_float = Token::new(
             TokenType::Number,
             "123.456".to_string(),
-            Some(Literals::Number(123.456)),
+            Some(LiteralType::Number(123.456)),
             2,
         );
         assert_eq!(token_float.get_type(), tokens[1].get_type());
@@ -282,7 +291,12 @@ mod test {
         let expected = vec![
             Token::new(TokenType::Fun, "fun".to_string(), None, 1),
             Token::new(TokenType::If, "if".to_string(), None, 1),
-            Token::new(TokenType::False,"false".to_string(), None, 2),
+            Token::new(
+                TokenType::False,
+                "false".to_string(),
+                Some(LiteralType::Bool(false)),
+                2,
+            ),
             Token::new(TokenType::Class, "class".to_string(), None, 2),
             Token::new(TokenType::Return, "return".to_string(), None, 2),
         ];
@@ -291,6 +305,6 @@ mod test {
             assert_eq!(token.get_lexeme(), tokens[index].get_lexeme());
             assert_eq!(token.get_literal(), tokens[index].get_literal());
             assert_eq!(token.get_line(), tokens[index].get_line());
-        } 
+        }
     }
 }

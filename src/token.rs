@@ -65,24 +65,30 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "print" => TokenType::Print,
     "return" => TokenType::Return,
     "super" => TokenType::Super,
+    "this" => TokenType::This,
+    "true" => TokenType::True,
     "var" => TokenType::Var,
     "while" => TokenType::While,
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Literals {
+pub enum LiteralType {
     Identifier(String),
     String_(String),
+    Bool(bool),
+    Nil,
     Number(f64),
     // TODO: we should respectively give integer and float!
 }
 
-impl fmt::Display for Literals {
+impl fmt::Display for LiteralType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Identifier(ident) => write!(f, "Identifier: {ident}"),
-            Self::String_(content) => write!(f, "String: {content}"),
-            Self::Number(x) => write!(f, "Number: {x}"),
+            Self::Identifier(ident) => write!(f, "{ident}"),
+            Self::String_(content) => write!(f, "{content}"),
+            Self::Number(x) => write!(f, "{x}"),
+            Self::Bool(flag) => write!(f, "{}", if *flag { "true" } else { "false" }),
+            Self::Nil => write!(f, "Nil"),
         }
     }
 }
@@ -91,12 +97,17 @@ impl fmt::Display for Literals {
 pub struct Token {
     type_: TokenType,
     lexeme: String,
-    literal: Option<Literals>,
+    literal: Option<LiteralType>,
     line: usize,
 }
 
 impl Token {
-    pub fn new(type_: TokenType, lexeme: String, literal: Option<Literals>, line: usize) -> Self {
+    pub fn new(
+        type_: TokenType,
+        lexeme: String,
+        literal: Option<LiteralType>,
+        line: usize,
+    ) -> Self {
         Self {
             type_,
             lexeme,
@@ -113,7 +124,7 @@ impl Token {
         &self.lexeme
     }
 
-    pub fn get_literal(&self) -> Option<&Literals> {
+    pub fn get_literal(&self) -> Option<&LiteralType> {
         match &self.literal {
             None => None,
             Some(l) => Some(l),
