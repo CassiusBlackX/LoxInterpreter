@@ -10,14 +10,14 @@
 class Scanner {
 public:
   Scanner() = default;
-  Scanner(const std::string& content) : source(content) {}
+  Scanner(const std::string &content) : source(content) {}
   std::vector<Token> scan_tokens();
 
 private:
   void scan_token();
   bool at_end() const { return current >= source.length(); }
   char advance();
-  bool next(char c) ;
+  bool next(char c);
   char peek() const;
   char peek_next() const;
   void add_token(TokenType, Literal);
@@ -27,12 +27,11 @@ private:
   void handle_identifier();
 
 private:
-std::string source;
+  std::string_view source;
   size_t start = 0;
-size_t current = 0;
+  size_t current = 0;
   size_t line = 1;
-std::vector<Token> tokens;
-
+  std::vector<Token> tokens;
 };
 
-#endif  // SCANNER_H_
+#endif // SCANNER_H_

@@ -7,12 +7,12 @@
 #include <stdexcept>
 #include <vector>
 
-#include "token.h"
 #include "scanner.h"
+#include "token.h"
 
 bool had_error;
 
-void run(std::string source) {
+void run(const std::string &source) {
   Scanner scanner(source);
   std::vector<Token> tokens = scanner.scan_tokens();
 

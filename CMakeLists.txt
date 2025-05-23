@@ -13,14 +13,22 @@ enable_testing()
 find_package(GTest REQUIRED)
 include_directories(${GTest_INCLUDE_DIRS})
 
-# tests
-file(GLOB TEST_FILES "tests/*.cpp")
-add_executable(${PROJECT_NAME}_tests ${TEST_FILES})
-target_link_libraries(${PROJECT_NAME}_tests GTest::GTest GTest::Main)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/)
 
-add_executable(${PROJECT_NAME}
-  src/main.cpp
+set(SOURCE_FILES
   src/error.cpp
   src/token.cpp
   src/scanner.cpp
 )
+
+add_executable(${PROJECT_NAME} src/main.cpp ${SOURCE_FILES})
+
+# tests
+# token test
+add_executable(token_test tests/token_test.cpp ${SOURCE_FILES})
+target_link_libraries(token_test PRIVATE GTest::GTest GTest::Main)
+gtest_discover_tests(token_test)
+# scanner test
+add_executable(scanner_test tests/scanner_test.cpp ${SOURCE_FILES})
+target_link_libraries(scanner_test PRIVATE GTest::GTest GTest::Main)
+gtest_discover_tests(scanner_test)

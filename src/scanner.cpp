@@ -1,12 +1,25 @@
 #include "scanner.h"
 #include "error.h"
+#include <charconv>
+#include <cmath>
+#include <stdexcept>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
 static bool is_digit(char c) { return '0' <= c && c <= '9'; }
 static bool is_alphabet(char c) {
-  return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z';
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 static bool is_alphanumeric(char c) { return is_digit(c) || is_alphabet(c); }
+static double sv_to_double(std::string_view sv) {
+  double result = NAN;
+  auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
+  if (ec != std::errc()) {
+    throw std::invalid_argument("Invalid double conversion!");
+  }
+  return result;
+}
 
 char Scanner::advance() { return source[current++]; }
 
@@ -32,12 +45,12 @@ char Scanner::peek_next() const {
 }
 
 void Scanner::add_token(TokenType type, Literal literal) {
-  std::string value = source.substr(start, current);
+  std::string_view value = source.substr(start, current - start);
   tokens.emplace_back(type, value, literal, line);
 }
 
 void Scanner::add_token(TokenType type) {
-  std::string value = source.substr(start, current);
+  std::string_view value = source.substr(start, current - start);
   tokens.emplace_back(type, value, Literal(), line);
 }
 
@@ -51,8 +64,8 @@ void Scanner::handle_string() {
   if (at_end()) {
     error(line, "Unterminated string!");
   }
-  advance();
-  std::string value = source.substr(start + 1, current - 1);
+  advance();  // consume the closing '"'
+  std::string_view value = source.substr(start + 1, current - start - 2);
   add_token(TokenType::String, Literal(value, Literal::Type::String));
 }
 
@@ -66,7 +79,13 @@ void Scanner::handle_number() {
       advance();
     }
   }
-  double value = stod(source.substr(start, current));
+  double value = NAN;
+  try {
+    value = sv_to_double(source.substr(start, current));
+  } catch (std::invalid_argument) {
+    error(line, "invallid float conversion!");
+  }
+  // double value = stod(source.substr(start, current));
   add_token(TokenType::Number, Literal(value));
 }
 
@@ -74,7 +93,7 @@ void Scanner::handle_identifier() {
   while (is_alphanumeric(peek())) {
     advance();
   }
-  std::string value = source.substr(start, current);
+  std::string_view value = source.substr(start, current - start);
   TokenType type = match_keyword(value);
   switch (type) {
   case TokenType::True:
