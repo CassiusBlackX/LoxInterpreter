@@ -3,7 +3,7 @@
 #include <string_view>
 #include <type_traits>
 
-std::string Literal::to_string() const {
+std::string LiteralType::to_string() const {
   return std::visit(
       [](auto &&arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
@@ -21,7 +21,7 @@ std::string Literal::to_string() const {
       value_);
 }
 
-bool Literal::operator==(const Literal &other) const {
+bool LiteralType::operator==(const LiteralType &other) const {
   if (type_ != other.type_)
     return false;
 

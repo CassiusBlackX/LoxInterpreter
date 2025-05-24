@@ -19,6 +19,7 @@ set(SOURCE_FILES
   src/error.cpp
   src/token.cpp
   src/scanner.cpp
+  src/parser.cpp
 )
 
 add_executable(${PROJECT_NAME} src/main.cpp ${SOURCE_FILES})

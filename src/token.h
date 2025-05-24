@@ -1,4 +1,3 @@
-// TODO: Literal::String should into  string_view
 #include <cassert>
 #include <cstddef>
 #include <ostream>
@@ -10,7 +9,7 @@
 #define TOKEN_H_
 
 // Literal is copiable (shallow copy is totally safe)
-class Literal {
+class LiteralType {
 public:
   enum class Type {
     Identifer,
@@ -20,17 +19,17 @@ public:
     Number,
   };
 
-  Literal() : value_(nullptr), type_(Type::Nil) {}
-  Literal(double d) : value_(d), type_(Type::Number) {}
-  Literal(bool b) : value_(b), type_(Type::Bool) {}
-  Literal(std::string_view str, Type ty) : value_(str), type_(ty) {
+  LiteralType() : value_(nullptr), type_(Type::Nil) {}
+  LiteralType(double d) : value_(d), type_(Type::Number) {}
+  LiteralType(bool b) : value_(b), type_(Type::Bool) {}
+  LiteralType(std::string_view str, Type ty) : value_(str), type_(ty) {
     assert(ty == Type::String || ty == Type::Identifer);
   }
 
-  bool operator==(const Literal &other) const;
+  bool operator==(const LiteralType &other) const;
   std::string to_string() const;
 
-  friend std::ostream &operator<<(std::ostream &os, Literal literal) {
+  friend std::ostream &operator<<(std::ostream &os, LiteralType literal) {
     os << literal.to_string();
     return os;
   }
@@ -93,9 +92,10 @@ std::ostream &operator<<(std::ostream &os, TokenType tk_type);
 
 TokenType match_keyword(std::string_view);
 
+// Token is copiable (safe when shallow copy)
 class Token {
 public:
-  Token(TokenType type, std::string_view lexeme, Literal literal, int line)
+  Token(TokenType type, std::string_view lexeme, LiteralType literal, int line)
       : type(type), lexeme(lexeme), literal(literal), line(line) {}
 
   friend std::ostream &operator<<(std::ostream &os, const Token &token) {
@@ -106,12 +106,12 @@ public:
   TokenType get_tokentype() const { return type; }
   std::string_view get_lexeme() const { return lexeme; }
   size_t get_line() const { return line; }
-  Literal get_literal() const { return literal; }
+  LiteralType get_literal() const { return literal; }
 
 private:
   TokenType type;
   std::string_view lexeme;
-  Literal literal;
+  LiteralType literal;
   size_t line;
 };
 

@@ -44,14 +44,14 @@ char Scanner::peek_next() const {
   return source[current + 1];
 }
 
-void Scanner::add_token(TokenType type, Literal literal) {
+void Scanner::add_token(TokenType type, LiteralType literal) {
   std::string_view value = source.substr(start, current - start);
   tokens.emplace_back(type, value, literal, line);
 }
 
 void Scanner::add_token(TokenType type) {
   std::string_view value = source.substr(start, current - start);
-  tokens.emplace_back(type, value, Literal(), line);
+  tokens.emplace_back(type, value, LiteralType(), line);
 }
 
 void Scanner::handle_string() {
@@ -64,9 +64,9 @@ void Scanner::handle_string() {
   if (at_end()) {
     error(line, "Unterminated string!");
   }
-  advance();  // consume the closing '"'
+  advance(); // consume the closing '"'
   std::string_view value = source.substr(start + 1, current - start - 2);
-  add_token(TokenType::String, Literal(value, Literal::Type::String));
+  add_token(TokenType::String, LiteralType(value, LiteralType::Type::String));
 }
 
 void Scanner::handle_number() {
@@ -86,7 +86,7 @@ void Scanner::handle_number() {
     error(line, "invallid float conversion!");
   }
   // double value = stod(source.substr(start, current));
-  add_token(TokenType::Number, Literal(value));
+  add_token(TokenType::Number, LiteralType(value));
 }
 
 void Scanner::handle_identifier() {
@@ -97,16 +97,17 @@ void Scanner::handle_identifier() {
   TokenType type = match_keyword(value);
   switch (type) {
   case TokenType::True:
-    add_token(TokenType::True, Literal(true));
+    add_token(TokenType::True, LiteralType(true));
     break;
   case TokenType::False:
-    add_token(TokenType::False, Literal(false));
+    add_token(TokenType::False, LiteralType(false));
     break;
   case TokenType::Nil:
     add_token(TokenType::Nil);
     break;
   case TokenType::Identifier:
-    add_token(TokenType::Identifier, Literal(value, Literal::Type::Identifer));
+    add_token(TokenType::Identifier,
+              LiteralType(value, LiteralType::Type::Identifer));
     break;
   default:
     add_token(type);
@@ -194,6 +195,6 @@ std::vector<Token> Scanner::scan_tokens() {
     start = current;
     scan_token();
   }
-  tokens.emplace_back(TokenType::Eof, "", Literal(), line);
+  tokens.emplace_back(TokenType::Eof, "", LiteralType(), line);
   return tokens;
 }

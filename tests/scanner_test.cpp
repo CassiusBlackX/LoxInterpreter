@@ -32,16 +32,16 @@ TEST_F(ScannerTester, scan_operator) {
   std::string content = "(*!) != <= == =;";
   initialize(content);
   std::vector<Token> expected;
-  expected.emplace_back(TokenType::LeftParen, "(", Literal(), 1);
-  expected.emplace_back(TokenType::Star, "*", Literal(), 1);
-  expected.emplace_back(TokenType::Bang, "!", Literal(), 1);
-  expected.emplace_back(TokenType::RightParen, ")", Literal(), 1);
-  expected.emplace_back(TokenType::BangEqual, "!=", Literal(), 1);
-  expected.emplace_back(TokenType::LessEqual, "<=", Literal(), 1);
-  expected.emplace_back(TokenType::EqualEqual, "==", Literal(), 1);
-  expected.emplace_back(TokenType::Equal, "=", Literal(), 1);
-  expected.emplace_back(TokenType::SemiColon, ";", Literal(), 1);
-  expected.emplace_back(TokenType::Eof, "", Literal(), 1);
+  expected.emplace_back(TokenType::LeftParen, "(", LiteralType(), 1);
+  expected.emplace_back(TokenType::Star, "*", LiteralType(), 1);
+  expected.emplace_back(TokenType::Bang, "!", LiteralType(), 1);
+  expected.emplace_back(TokenType::RightParen, ")", LiteralType(), 1);
+  expected.emplace_back(TokenType::BangEqual, "!=", LiteralType(), 1);
+  expected.emplace_back(TokenType::LessEqual, "<=", LiteralType(), 1);
+  expected.emplace_back(TokenType::EqualEqual, "==", LiteralType(), 1);
+  expected.emplace_back(TokenType::Equal, "=", LiteralType(), 1);
+  expected.emplace_back(TokenType::SemiColon, ";", LiteralType(), 1);
+  expected.emplace_back(TokenType::Eof, "", LiteralType(), 1);
   tokens_tester(expected);
 }
 
@@ -50,14 +50,14 @@ TEST_F(ScannerTester, scan_special_ascii) {
   initialize(content);
   std::vector<Token> expected;
   expected.emplace_back(TokenType::Identifier, "a",
-                        Literal("a", Literal::Type::Identifer), 1);
+                        LiteralType("a", LiteralType::Type::Identifer), 1);
   expected.emplace_back(TokenType::Identifier, "b",
-                        Literal("b", Literal::Type::Identifer), 2);
+                        LiteralType("b", LiteralType::Type::Identifer), 2);
   expected.emplace_back(TokenType::String, "\"happy\"",
-                        Literal("happy", Literal::Type::String), 2);
+                        LiteralType("happy", LiteralType::Type::String), 2);
   expected.emplace_back(TokenType::Identifier, "c",
-                        Literal("c", Literal::Type::Identifer), 3);
-  expected.emplace_back(TokenType::Eof, "", Literal(), 3);
+                        LiteralType("c", LiteralType::Type::Identifer), 3);
+  expected.emplace_back(TokenType::Eof, "", LiteralType(), 3);
   tokens_tester(expected);
 }
 
@@ -66,10 +66,10 @@ TEST_F(ScannerTester, scan_number) {
   initialize(content);
   std::vector<Token> expected;
   expected.emplace_back(TokenType::Number, "123456",
-                        Literal(static_cast<double>(123456)), 1);
+                        LiteralType(static_cast<double>(123456)), 1);
   expected.emplace_back(TokenType::Number, "123.456",
-                        Literal(static_cast<double>(123.456)), 2);
-  expected.emplace_back(TokenType::Eof, "", Literal(), 2);
+                        LiteralType(static_cast<double>(123.456)), 2);
+  expected.emplace_back(TokenType::Eof, "", LiteralType(), 2);
   tokens_tester(expected);
 }
 
@@ -78,15 +78,16 @@ TEST_F(ScannerTester, scan_keyword) {
   // std::string content = "fun if \n false class \rreturn";
   initialize(content);
   std::vector<Token> expected;
-  expected.emplace_back(TokenType::Fun, "fun", Literal(), 1);
-  expected.emplace_back(TokenType::If, "if", Literal(), 1);
+  expected.emplace_back(TokenType::Fun, "fun", LiteralType(), 1);
+  expected.emplace_back(TokenType::If, "if", LiteralType(), 1);
   expected.emplace_back(TokenType::Identifier, "funny",
-                        Literal("funny", Literal::Type::Identifer), 1);
-  expected.emplace_back(TokenType::False, "false", Literal(false), 2);
+                        LiteralType("funny", LiteralType::Type::Identifer), 1);
+  expected.emplace_back(TokenType::False, "false", LiteralType(false), 2);
   expected.emplace_back(TokenType::Identifier, "classifier",
-                        Literal("classifier", Literal::Type::Identifer), 2);
-  expected.emplace_back(TokenType::Class_, "class", Literal(), 2);
-  expected.emplace_back(TokenType::Return, "return", Literal(), 2);
-  expected.emplace_back(TokenType::Eof, "", Literal(), 2);
+                        LiteralType("classifier", LiteralType::Type::Identifer),
+                        2);
+  expected.emplace_back(TokenType::Class_, "class", LiteralType(), 2);
+  expected.emplace_back(TokenType::Return, "return", LiteralType(), 2);
+  expected.emplace_back(TokenType::Eof, "", LiteralType(), 2);
   tokens_tester(expected);
 }
