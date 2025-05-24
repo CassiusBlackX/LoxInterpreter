@@ -9,16 +9,20 @@
 
 #include "scanner.h"
 #include "token.h"
+#include "parser.h"
 
-bool had_error;
+extern bool had_error;
 
 void run(const std::string &source) {
   Scanner scanner(source);
   std::vector<Token> tokens = scanner.scan_tokens();
 
-  for (auto token : tokens) {
-    std::cout << token << std::endl;
-  }
+  Parser parser(tokens);
+  Expr* expr = parser.parse();
+
+  std::cout << expr->print() << std::endl;
+
+  if (had_error) return;
 }
 
 void run_file(std::string path) {

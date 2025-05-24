@@ -19,8 +19,11 @@ set(SOURCE_FILES
   src/error.cpp
   src/token.cpp
   src/scanner.cpp
+  src/expr.cpp
   src/parser.cpp
 )
+
+add_definitions(-DFLOAT_PRECISION=3)
 
 add_executable(${PROJECT_NAME} src/main.cpp ${SOURCE_FILES})
 
@@ -33,3 +36,11 @@ gtest_discover_tests(token_test)
 add_executable(scanner_test tests/scanner_test.cpp ${SOURCE_FILES})
 target_link_libraries(scanner_test PRIVATE GTest::GTest GTest::Main)
 gtest_discover_tests(scanner_test)
+# expr test
+add_executable(expr_test tests/expr_test.cpp ${SOURCE_FILES})
+target_link_libraries(expr_test PRIVATE GTest::GTest GTest::Main)
+gtest_discover_tests(expr_test)
+# parser test
+add_executable(parser_test tests/parser_test.cpp ${SOURCE_FILES})
+target_link_libraries(parser_test PRIVATE GTest::GTest GTest::Main)
+gtest_discover_tests(parser_test)

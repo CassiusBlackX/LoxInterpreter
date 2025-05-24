@@ -1,6 +1,14 @@
 #include "parser.h"
 #include "error.h"
+#include <stdexcept>
 #include <string>
+
+// expression -> equality ;
+// equality -> comparison ( ( "!=" | "==" ) comparison )* ;
+// comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+// term -> factor  ( ( "-" | "+" ) factor )* ;
+// unary -> ("!" | "-" ) unary | primary ;
+// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" ;
 
 static void token_error(Token token, std::string_view message) {
   if (token.get_tokentype() == TokenType::Eof) {
@@ -20,6 +28,18 @@ Expr *Parser::equality() {
   while (match({TokenType::BangEqual, TokenType::Equal})) {
     Token op = previous();
     Expr *right = comparison();
+    expr = new Binary(expr, op, right);
+  }
+  return expr;
+}
+
+Expr *Parser::comparison() {
+  Expr *expr = term();
+
+  while (match({TokenType::Greater, TokenType::GreaterEqual, TokenType::Less,
+                TokenType::LessEqual})) {
+    Token op = previous();
+    Expr *right = term();
     expr = new Binary(expr, op, right);
   }
   return expr;
@@ -113,6 +133,7 @@ Token Parser::consume(TokenType type, std::string_view message) {
   if (!check(type)) {
     error(previous(), message);
     // TODO: throw anything here?
+    throw std::invalid_argument("expecting ')' at the end of an expression!");
   }
   advance();
   return previous();
@@ -120,4 +141,37 @@ Token Parser::consume(TokenType type, std::string_view message) {
 
 void Parser::error(Token token, std::string_view message) const {
   token_error(token, message);
+}
+
+void Parser::synchronize() {
+  advance();
+
+  while (!at_end()) {
+    if (previous().get_tokentype() == TokenType::SemiColon)
+      return;
+
+    switch (peek().get_tokentype()) {
+    case TokenType::Class_:
+    case TokenType::Fun:
+    case TokenType::Var:
+    case TokenType::For:
+    case TokenType::If:
+    case TokenType::While:
+    case TokenType::Print:
+    case TokenType::Return:
+      return;
+    default:
+      // do nothing
+      continue;
+    }
+    advance();
+  }
+}
+
+Expr *Parser::parse() {
+  try {
+    return expression();
+  } catch (...) {
+    return nullptr;
+  }
 }
