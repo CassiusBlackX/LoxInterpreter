@@ -8,7 +8,7 @@
 #ifndef TOKEN_H_
 #define TOKEN_H_
 
-// Literal is copiable (shallow copy is totally safe)
+// TODO: LiteralType could be copiable, as long as its string is a view of Token
 class LiteralType {
 public:
   enum class Type {
@@ -95,8 +95,9 @@ TokenType match_keyword(std::string_view);
 // Token is copiable (safe when shallow copy)
 class Token {
 public:
-  Token(TokenType type, std::string_view lexeme, LiteralType literal, int line)
-      : type(type), lexeme(lexeme), literal(literal), line(line) {}
+  // TODO: the construction of `LiteralType` should be done inside the
+  // constructor of Token!
+  Token(TokenType type, std::string_view lexeme, size_t line);
 
   friend std::ostream &operator<<(std::ostream &os, const Token &token) {
     os << token.type << ' ' << token.lexeme << ' ' << token.literal;
@@ -110,7 +111,9 @@ public:
 
 private:
   TokenType type;
-  std::string_view lexeme;
+  // lexeme must not be modified or else LiteralType
+  // might be dangling!
+  const std::string lexeme;
   LiteralType literal;
   size_t line;
 };

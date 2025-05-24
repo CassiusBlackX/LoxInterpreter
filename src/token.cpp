@@ -1,5 +1,10 @@
 #include "token.h"
+#include "error.h"
+
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 #include <string_view>
 #include <type_traits>
 
@@ -107,5 +112,48 @@ TokenType match_keyword(std::string_view str) {
     return TokenType::While;
   default:
     return TokenType::Identifier;
+  }
+}
+
+static double sv_to_double(std::string_view sv) {
+  double result = NAN;
+  auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), result);
+  if (ec != std::errc()) {
+    throw std::invalid_argument("Invalid double conversion!");
+  }
+  return result;
+}
+
+Token::Token(TokenType type, std::string_view lexeme_, size_t line)
+    : type(type), lexeme(lexeme_), line(line) {
+  switch (type) {
+  case TokenType::String:
+    literal = LiteralType(
+        std::string_view(this->lexeme.data() + 1, this->lexeme.size() - 2),
+        LiteralType::Type::String);
+    break;
+  case TokenType::Identifier:
+    literal = LiteralType(std::string_view(this->lexeme),
+                          LiteralType::Type::Identifer);
+    break;
+  case TokenType::Number: {
+    double value = NAN;
+    try {
+      value = sv_to_double(lexeme_);
+    } catch (std::invalid_argument) {
+      error(line, "failed to parse double!");
+    }
+    literal = LiteralType(value);
+    break;
+  }
+  case TokenType::True:
+    literal = LiteralType(true);
+    break;
+  case TokenType::False:
+    literal = LiteralType(false);
+    break;
+  default:
+    literal = LiteralType();
+    break;
   }
 }

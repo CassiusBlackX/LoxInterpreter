@@ -20,7 +20,6 @@ private:
   bool next(char c);
   char peek() const;
   char peek_next() const;
-  void add_token(TokenType, LiteralType);
   void add_token(TokenType);
   void handle_string();
   void handle_number();
