@@ -52,7 +52,7 @@ pub enum TokenType {
     Eof,
 }
 
-pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
+static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "and" => TokenType::And,
     "class" => TokenType::Class,
     "else" => TokenType::Else,
@@ -70,6 +70,10 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "var" => TokenType::Var,
     "while" => TokenType::While,
 };
+
+pub fn match_keywords(word: &str) -> Option<TokenType> {
+    KEYWORDS.get(word).copied()
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LiteralType {
@@ -97,7 +101,7 @@ impl fmt::Display for LiteralType {
 pub struct Token {
     type_: TokenType,
     lexeme: String,
-    literal: Option<LiteralType>,
+    pub literal: Option<LiteralType>,
     line: usize,
 }
 
@@ -151,9 +155,7 @@ mod test {
 
     #[test]
     fn test_keywords_hashmap() {
-        let print_str = "print";
-        assert_eq!(TokenType::Print, KEYWORDS[print_str]);
-        let while_str = "while".to_string();
-        assert_eq!(TokenType::While, KEYWORDS[&while_str]);
+        assert_eq!(TokenType::Print, match_keywords("print").unwrap());
+        assert_eq!(TokenType::While, match_keywords("while").unwrap());
     }
 }

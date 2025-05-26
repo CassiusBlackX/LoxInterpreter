@@ -1,4 +1,4 @@
-use crate::token::{KEYWORDS, LiteralType, Token, TokenType};
+use crate::token::{LiteralType, Token, TokenType, match_keywords};
 
 pub struct Scanner {
     source: String,
@@ -132,14 +132,14 @@ impl Scanner {
         true
     }
 
-    fn peek(&mut self) -> char {
+    fn peek(&self) -> char {
         if self.at_end() {
             return '\0';
         }
         self.source.chars().nth(self.current).unwrap()
     }
 
-    fn peek_next(&mut self) -> char {
+    fn peek_next(&self) -> char {
         if self.current + 1 >= self.source.len() {
             return '\0';
         }
@@ -187,16 +187,21 @@ impl Scanner {
         while self.peek().is_ascii_alphanumeric() {
             self.advance();
         }
-        let value = self.source[self.start..self.current].to_string();
-        let type_ = KEYWORDS.get(&value);
+        let value = &self.source[self.start..self.current];
+        let type_ = match_keywords(value);
         match type_ {
             Some(TokenType::True) => self.add_token(TokenType::True, Some(LiteralType::Bool(true))),
             Some(TokenType::False) => {
                 self.add_token(TokenType::False, Some(LiteralType::Bool(false)))
             }
             Some(TokenType::Nil) => self.add_token(TokenType::Nil, Some(LiteralType::Nil)),
-            Some(&x) => self.add_token(x, None),
-            None => self.add_token(TokenType::Identifier, Some(LiteralType::Identifier(value))),
+            Some(x) => self.add_token(x, None),
+            None => self.add_token(
+                TokenType::Identifier,
+                Some(LiteralType::Identifier(
+                    self.source[self.start..self.current].to_string(),
+                )),
+            ),
         }
         // if let Some(&ky_type) = type_ {
         //     self.add_token(ky_type, None);
@@ -211,100 +216,119 @@ mod test {
     use super::*;
     use crate::token::*;
 
+    fn scanner_helper(content: String, expected: &[Token]) {
+        let mut scanner = Scanner::new(content);
+        let got = scanner.scan_tokens();
+        assert_eq!(got.len(), expected.len());
+        for (index, tk_e) in expected.iter().enumerate() {
+            let tk_g = &got[index];
+            assert_eq!(tk_e.get_line(), tk_g.get_line());
+            assert_eq!(tk_e.get_type(), tk_g.get_type());
+            assert_eq!(tk_e.get_lexeme(), tk_g.get_lexeme());
+            assert_eq!(tk_e.get_literal(), tk_g.get_literal());
+        }
+    }
+
     #[test]
     fn test_scan_operator() {
-        let content = "(*!) != <=".to_string();
-        let mut scanner = Scanner::new(content);
-        let tokens = scanner.scan_tokens();
-        assert_eq!(TokenType::LeftParen, tokens[0].get_type());
-        assert_eq!(TokenType::Star, tokens[1].get_type());
-        assert_eq!(TokenType::Bang, tokens[2].get_type());
-        assert_eq!(TokenType::RightParen, tokens[3].get_type());
-        assert_eq!(TokenType::BangEqual, tokens[4].get_type());
-        assert_eq!(TokenType::LessEqual, tokens[5].get_type());
+        let content = "(*!) != <= == =;".to_string();
+        let expected = &[
+            Token::new(TokenType::LeftParen, "(".to_string(), None, 1),
+            Token::new(TokenType::Star, "*".to_string(), None, 1),
+            Token::new(TokenType::Bang, "!".to_string(), None, 1),
+            Token::new(TokenType::RightParen, ")".to_string(), None, 1),
+            Token::new(TokenType::BangEqual, "!=".to_string(), None, 1),
+            Token::new(TokenType::LessEqual, "<=".to_string(), None, 1),
+            Token::new(TokenType::EqualEqual, "==".to_string(), None, 1),
+            Token::new(TokenType::Equal, "=".to_string(), None, 1),
+            Token::new(TokenType::SemiColon, ";".to_string(), None, 1),
+            Token::new(TokenType::Eof, String::new(), None, 1),
+        ];
+        scanner_helper(content, expected);
     }
 
     #[test]
     fn test_special_ascii() {
-        let content = "a\r\t\nb".to_string();
-        let mut scanner = Scanner::new(content);
-        let tokens = scanner.scan_tokens();
-        let token_a = Token::new(
-            TokenType::Identifier,
-            "a".to_string(),
-            Some(LiteralType::Identifier("a".to_string())),
-            1,
-        );
-        assert_eq!(token_a.get_type(), tokens[0].get_type());
-        assert_eq!(token_a.get_lexeme(), tokens[0].get_lexeme());
-        assert_eq!(token_a.get_literal(), tokens[0].get_literal());
-        assert_eq!(token_a.get_line(), tokens[0].get_line());
-        let token_b = Token::new(
-            TokenType::Identifier,
-            "b".to_string(),
-            Some(LiteralType::Identifier("b".to_string())),
-            2,
-        );
-        assert_eq!(token_b.get_type(), tokens[1].get_type());
-        assert_eq!(token_b.get_lexeme(), tokens[1].get_lexeme());
-        assert_eq!(token_b.get_literal(), tokens[1].get_literal());
-        assert_eq!(token_b.get_line(), tokens[1].get_line());
-        let token_eof = Token::new(TokenType::Eof, "".to_string(), None, 2);
-        assert_eq!(token_eof.get_type(), tokens[2].get_type());
-        assert_eq!(token_eof.get_lexeme(), tokens[2].get_lexeme());
-        assert_eq!(token_eof.get_literal(), tokens[2].get_literal());
-        assert_eq!(token_eof.get_line(), tokens[2].get_line());
+        let content = "a\r\t\nb  \"happy\"//nothing\nc".to_string();
+        let expected = &[
+            Token::new(
+                TokenType::Identifier,
+                "a".to_string(),
+                Some(LiteralType::Identifier("a".to_string())),
+                1,
+            ),
+            Token::new(
+                TokenType::Identifier,
+                "b".to_string(),
+                Some(LiteralType::Identifier("b".to_string())),
+                2,
+            ),
+            Token::new(
+                TokenType::String_,
+                "\"happy\"".to_string(),
+                Some(LiteralType::String_("happy".to_string())),
+                2,
+            ),
+            Token::new(
+                TokenType::Identifier,
+                "c".to_string(),
+                Some(LiteralType::Identifier("c".to_string())),
+                3,
+            ),
+            Token::new(TokenType::Eof, String::new(), None, 3),
+        ];
+        scanner_helper(content, expected);
     }
 
     #[test]
     fn test_number() {
         let content = "123456\r\n 123.456".to_string();
-        let mut scanner = Scanner::new(content);
-        let tokens = scanner.scan_tokens();
-        let token_int = Token::new(
-            TokenType::Number,
-            "123456".to_string(),
-            Some(LiteralType::Number(123456 as f64)),
-            1,
-        );
-        assert_eq!(token_int.get_type(), tokens[0].get_type());
-        assert_eq!(token_int.get_lexeme(), tokens[0].get_lexeme());
-        assert_eq!(token_int.get_literal(), tokens[0].get_literal());
-        assert_eq!(token_int.get_line(), tokens[0].get_line());
-        let token_float = Token::new(
-            TokenType::Number,
-            "123.456".to_string(),
-            Some(LiteralType::Number(123.456)),
-            2,
-        );
-        assert_eq!(token_float.get_type(), tokens[1].get_type());
-        assert_eq!(token_float.get_lexeme(), tokens[1].get_lexeme());
-        assert_eq!(token_float.get_literal(), tokens[1].get_literal());
-        assert_eq!(token_float.get_line(), tokens[1].get_line());
+        let expected = &[
+            Token::new(
+                TokenType::Number,
+                "123456".to_string(),
+                Some(LiteralType::Number(123456f64)),
+                1,
+            ),
+            Token::new(
+                TokenType::Number,
+                "123.456".to_string(),
+                Some(LiteralType::Number(123.456)),
+                2,
+            ),
+            Token::new(TokenType::Eof, String::new(), None, 2),
+        ];
+        scanner_helper(content, expected);
     }
 
     #[test]
     fn test_keyword() {
-        let content = "fun if \n false class\rreturn".to_string();
-        let mut scanner = Scanner::new(content);
-        let tokens = scanner.scan_tokens();
-        let expected = vec![
+        let content = "fun if funny \n false classifier class \rreturn".to_string();
+        let expected = &[
             Token::new(TokenType::Fun, "fun".to_string(), None, 1),
             Token::new(TokenType::If, "if".to_string(), None, 1),
+            Token::new(
+                TokenType::Identifier,
+                "funny".to_string(),
+                Some(LiteralType::Identifier("funny".to_string())),
+                1,
+            ),
             Token::new(
                 TokenType::False,
                 "false".to_string(),
                 Some(LiteralType::Bool(false)),
                 2,
             ),
+            Token::new(
+                TokenType::Identifier,
+                "classifier".to_string(),
+                Some(LiteralType::Identifier("classifier".to_string())),
+                2,
+            ),
             Token::new(TokenType::Class, "class".to_string(), None, 2),
             Token::new(TokenType::Return, "return".to_string(), None, 2),
+            Token::new(TokenType::Eof, String::new(), None, 2),
         ];
-        for (index, token) in expected.iter().enumerate() {
-            assert_eq!(token.get_type(), tokens[index].get_type());
-            assert_eq!(token.get_lexeme(), tokens[index].get_lexeme());
-            assert_eq!(token.get_literal(), tokens[index].get_literal());
-            assert_eq!(token.get_line(), tokens[index].get_line());
-        }
+        scanner_helper(content, expected);
     }
 }
