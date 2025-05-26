@@ -12,7 +12,7 @@
 #include <type_traits>
 
 #ifndef FLOAT_PRECISION
-#define FLOAT_PRECISION 4 
+#define FLOAT_PRECISION 4
 #endif
 
 std::string LiteralType::to_string() const {
@@ -28,8 +28,8 @@ std::string LiteralType::to_string() const {
           return arg ? "true" : "false";
         else if constexpr (std::is_same_v<T, std::nullptr_t>)
           return "nil";
-        else if constexpr (std::is_same_v<T, std::string_view>)
-          return std::string("\"") + std::string(arg) + "\"";
+        else if constexpr (std::is_same_v<T, std::string>)
+          return std::string(arg);
         else
           return "";
       },
@@ -49,11 +49,41 @@ bool LiteralType::operator==(const LiteralType &other) const {
     return std::get<bool>(value_) == std::get<bool>(other.value_);
   case Type::String:
   case Type::Identifer:
-    return std::get<std::string_view>(value_) ==
-           std::get<std::string_view>(other.value_);
+    return std::get<std::string>(value_) == std::get<std::string>(other.value_);
   default:
     return false;
   }
+}
+
+LiteralType::operator double() const {
+  if (type_ != Type::Number) {
+    throw std::runtime_error(
+        "Cannot convert non-Number LiteralType into double");
+  }
+  return std::get<double>(value_);
+}
+
+// everything else but Nil and false is true
+LiteralType::operator bool() const {
+  switch (type_) {
+  case Type::String:
+  case Type::Number:
+    return true;
+  case Type::Nil:
+    return false;
+  case Type::Identifer:
+    throw std::runtime_error("should not convert an identifier into a bool");
+  case Type::Bool:
+    return std::get<bool>(value_);
+  }
+}
+
+// BUG: should Type::Nil be able to accept other values?
+LiteralType::operator std::nullptr_t() const {
+  if (type_ != Type::Nil) {
+    throw std::runtime_error("Cannot convert non-Nil LiteralType into Nil");
+  }
+  return std::get<std::nullptr_t>(value_);
 }
 
 constexpr std::array<std::string_view,
@@ -69,12 +99,12 @@ constexpr std::array<std::string_view,
         "True",      "Var",          "While",     "Eof",
 };
 
-constexpr std::string_view to_string(TokenType tk_type) {
+std::string_view tk_type_to_string(TokenType tk_type) {
   return TOKEN_TYPE_NAMES.at(static_cast<std::size_t>(tk_type));
 }
 
 std::ostream &operator<<(std::ostream &os, TokenType tk_type) {
-  os << to_string(tk_type);
+  os << tk_type_to_string(tk_type);
   return os;
 }
 
@@ -139,19 +169,19 @@ Token::Token(TokenType type, std::string_view lexeme_, size_t line)
   switch (type) {
   case TokenType::String:
     literal = LiteralType(
-        std::string_view(this->lexeme.data() + 1, this->lexeme.size() - 2),
+        std::string(this->lexeme.data() + 1, this->lexeme.size() - 2),
         LiteralType::Type::String);
     break;
   case TokenType::Identifier:
-    literal = LiteralType(std::string_view(this->lexeme),
-                          LiteralType::Type::Identifer);
+    literal =
+        LiteralType(std::string(this->lexeme), LiteralType::Type::Identifer);
     break;
   case TokenType::Number: {
     double value = NAN;
     try {
       value = sv_to_double(lexeme_);
     } catch (std::invalid_argument) {
-      error(line, "failed to parse double!");
+      error(line, "failed to tokenize double when parsing!");
     }
     literal = LiteralType(value);
     break;

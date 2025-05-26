@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "error.h"
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -20,7 +21,76 @@ static void token_error(Token token, std::string_view message) {
   }
 }
 
-Expr *Parser::expression() { return equality(); }
+Stmt *Parser::declaration() {
+  try {
+    if (match({TokenType::Var}))
+      return var_declaration();
+    return statement();
+  } catch (const ParseError &e) {
+    synchronize();
+    return nullptr;
+  }
+}
+
+Stmt *Parser::var_declaration() {
+  Token name = consume(TokenType::Identifier, "Expect variable name");
+
+  Expr *initializer = nullptr;
+  if (match({TokenType::Equal})) {
+    initializer = expression();
+  }
+  consume(TokenType::SemiColon, "Expect ';' after variable declaration");
+  return new VarDecl(name, initializer);
+}
+
+Stmt *Parser::statement() {
+  if (match({TokenType::Print})) {
+    return print_statement();
+  }
+  if (match({TokenType::LeftBrace})) {
+    return new Block(block());
+  }
+  return expression_statement();
+}
+
+std::vector<Stmt *> Parser::block() {
+  std::vector<Stmt *> statements;
+  while (!check(TokenType::RightBrace) && !at_end()) {
+    statements.push_back(declaration());
+  }
+  consume(TokenType::RightBrace, "Expect '}' after block");
+  return statements;
+}
+
+Stmt *Parser::print_statement() {
+  Expr *value = expression();
+  consume(TokenType::SemiColon, "Expect ';' after value.");
+  return new PrintStmt(value);
+}
+
+Stmt *Parser::expression_statement() {
+  Expr *expr = expression();
+  consume(TokenType::SemiColon, "Expect ';' after expression");
+  return new ExprStmt(expr);
+}
+
+Expr *Parser::expression() { return assignment(); }
+
+Expr *Parser::assignment() {
+  Expr *expr = equality();
+
+  if (match({TokenType::Equal})) {
+    Token equal = previous();
+    Expr *value = assignment();
+
+    if (auto var = dynamic_cast<Variable *>(expr)) {
+      Token name = var->name;
+      return new Assign(name, value);
+    }
+    error(equal, "Invalid assignment target");
+  }
+  return expr;
+}
 
 Expr *Parser::equality() {
   Expr *expr = comparison();
@@ -85,6 +155,8 @@ Expr *Parser::primary() {
     return new Literal(LiteralType());
   } else if (match({TokenType::Number, TokenType::String})) {
     return new Literal(previous().get_literal());
+  } else if (match({TokenType::Identifier})) {
+    return new Variable(previous());
   } else if (match({TokenType::LeftParen})) {
     Expr *expr = expression();
     Token _token =
@@ -109,38 +181,36 @@ bool Parser::match(std::initializer_list<TokenType> types) {
   return false;
 }
 
-bool Parser::check(TokenType type) const {
+bool Parser::check(const TokenType type) const {
   if (at_end())
     return false;
   else
     return peek().get_tokentype() == type;
 }
 
-void Parser::advance() {
+Token Parser::advance() {
   if (!at_end()) {
     current++;
   }
-  previous();
+  return previous();
 }
 
 bool Parser::at_end() const { return peek().get_tokentype() == TokenType::Eof; }
 
-Token Parser::peek() const { return tokens[current]; }
+Token Parser::peek() const { return tokens.at(current); }
 
-Token Parser::previous() const { return tokens[current - 1]; }
+Token Parser::previous() const { return tokens.at(current - 1); }
 
-Token Parser::consume(TokenType type, std::string_view message) {
-  if (!check(type)) {
-    error(previous(), message);
-    // TODO: throw anything here?
-    throw std::invalid_argument("expecting ')' at the end of an expression!");
-  }
-  advance();
-  return previous();
+Token Parser::consume(const TokenType type, std::string_view message) {
+  if (check(type))
+    return advance();
+  throw error(peek(), message);
 }
 
-void Parser::error(Token token, std::string_view message) const {
+Parser::ParseError Parser::error(const Token &token,
+                                 std::string_view message) const {
   token_error(token, message);
+  return ParseError(token, std::string(message));
 }
 
 void Parser::synchronize() {
@@ -168,10 +238,10 @@ void Parser::synchronize() {
   }
 }
 
-Expr *Parser::parse() {
-  try {
-    return expression();
-  } catch (...) {
-    return nullptr;
+std::vector<Stmt *> Parser::parse() {
+  std::vector<Stmt *> statements;
+  while (!at_end()) {
+    statements.push_back(declaration());
   }
+  return statements;
 }

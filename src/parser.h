@@ -1,17 +1,27 @@
 #include <cstddef>
 #include <initializer_list>
+#include <stdexcept>
 #include <string_view>
 #include <vector>
 
 #include "expr.h"
+#include "stmt.h"
 #include "token.h"
 
-// expression -> equality ;
-// equality -> comparison ( ( "!=" | "==" ) comparison )* ;
+// program -> declaration* EOF ;
+// declaration -> varDecl | statement ;
+// varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
+// statement -> exprStmt | printStmt | block;
+// block -> "{" declaration* "}" ;
+// exprStmt -> expression ";" ;
+// printStmt -> "print" expression ";" ;
+//
+// expression -> assignment;
+// assignment -> IDENTIFIER "=" assignment | equality
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
 // unary -> ("!" | "-" ) unary | primary ;
-// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" ;
+// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER;
 
 #ifndef PARSER_H_
 #define PARSER_H_
@@ -19,29 +29,46 @@
 class Parser {
 public:
   Parser(const std::vector<Token> &tokens) : tokens(std::move(tokens)) {}
-  Expr *parse();
+  std::vector<Stmt *> parse();
 
 private:
+  class ParseError : public std::runtime_error {
+  public:
+    explicit ParseError(const Token &token, const std::string &message)
+        : std::runtime_error(message), token(token) {}
+
+  private:
+    Token token;
+  };
+
+private:
+  Stmt *declaration();
+  Stmt *var_declaration();
+  Stmt *statement();
+  std::vector<Stmt*> block();
+  Stmt *print_statement();
+  Stmt *expression_statement();
   Expr *expression();
+  Expr *assignment();
   Expr *equality();
   Expr *comparison();
   Expr *term();
   Expr *factor();
   Expr *unary();
   Expr *primary();
-  void advance();
+  Token advance();
   bool match(std::initializer_list<TokenType> types);
-  bool check(TokenType type) const;
-  bool at_end() const ;
+  bool check(const TokenType type) const;
+  bool at_end() const;
   Token peek() const;
   Token previous() const;
-  Token consume(TokenType expected_type, std::string_view message);
-  void error(Token token, std::string_view message) const;
+  Token consume(const TokenType expected_type, std::string_view message);
+  ParseError error(const Token &token, std::string_view message) const;
   void synchronize();
 
 private:
   std::vector<Token> tokens;
-  size_t current;
+  size_t current = 0;
 };
 
 #endif // PARSER_H_

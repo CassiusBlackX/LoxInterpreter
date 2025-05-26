@@ -7,22 +7,28 @@
 #include <stdexcept>
 #include <vector>
 
-#include "scanner.h"
-#include "token.h"
+#include "expr.h"
+#include "interpreter.h"
 #include "parser.h"
+#include "scanner.h"
+#include "stmt.h"
+#include "token.h"
 
 extern bool had_error;
+extern bool had_runtime_error;
 
 void run(const std::string &source) {
   Scanner scanner(source);
   std::vector<Token> tokens = scanner.scan_tokens();
 
   Parser parser(tokens);
-  Expr* expr = parser.parse();
+  std::vector<Stmt *> statements = parser.parse();
 
-  std::cout << expr->print() << std::endl;
+  Interpreter interpreter;
+  interpreter.interpret(statements);
 
-  if (had_error) return;
+  if (had_error)
+    return;
 }
 
 void run_file(std::string path) {
@@ -42,6 +48,8 @@ void run_file(std::string path) {
 
   if (had_error)
     std::exit(65);
+  if (had_runtime_error)
+    std::exit(70);
 }
 
 void run_prompt() {
@@ -56,11 +64,10 @@ void run_prompt() {
 }
 
 int main(int argc, char **argv) {
-  if (argc > 1) {
-    std::cerr << "Usage: cpp_lox [script]" << std::endl;
+  if (argc > 2) {
     std::exit(64);
-  } else if (argc == 1) {
-    run_file(argv[0]);
+  } else if (argc == 2) {
+    run_file(argv[1]);
   } else {
     run_prompt();
   }

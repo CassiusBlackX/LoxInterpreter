@@ -8,7 +8,6 @@
 #ifndef TOKEN_H_
 #define TOKEN_H_
 
-// LiteralType is copiable(shallo copy is complete)
 class LiteralType {
 public:
   enum class Type {
@@ -22,12 +21,17 @@ public:
   LiteralType() : value_(nullptr), type_(Type::Nil) {}
   LiteralType(double d) : value_(d), type_(Type::Number) {}
   LiteralType(bool b) : value_(b), type_(Type::Bool) {}
-  LiteralType(std::string_view str, Type ty) : value_(str), type_(ty) {
+  LiteralType(std::string str, Type ty) : value_(std::move(str)), type_(ty) {
     assert(ty == Type::String || ty == Type::Identifer);
   }
 
   bool operator==(const LiteralType &other) const;
   std::string to_string() const;
+  Type get_type() const { return type_; }
+
+  explicit operator double() const;
+  explicit operator bool() const;
+  explicit operator std::nullptr_t() const;
 
   friend std::ostream &operator<<(std::ostream &os, LiteralType literal) {
     os << literal.to_string();
@@ -35,7 +39,7 @@ public:
   }
 
 private:
-  std::variant<double, bool, std::string_view, std::nullptr_t> value_;
+  std::variant<double, bool, std::string, std::nullptr_t> value_;
   Type type_;
 };
 
@@ -87,7 +91,7 @@ enum class TokenType {
   Invalid,
 };
 
-constexpr std::string_view to_string(TokenType tk_type);
+std::string_view tk_type_to_string(TokenType tk_type);
 std::ostream &operator<<(std::ostream &os, TokenType tk_type);
 
 TokenType match_keyword(std::string_view);
@@ -101,8 +105,13 @@ public:
     return os;
   }
 
+  std::string to_string() const {
+    std::string_view tk_type_name = tk_type_to_string(type);
+    return std::string(tk_type_name) + " " + lexeme + " " + literal.to_string();
+  }
+
   TokenType get_tokentype() const { return type; }
-  std::string_view get_lexeme() const { return lexeme; }
+  std::string get_lexeme() const { return lexeme; }
   size_t get_line() const { return line; }
   LiteralType get_literal() const { return literal; }
 
