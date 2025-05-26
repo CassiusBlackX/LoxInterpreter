@@ -49,6 +49,10 @@ std::string Assign::print() const {
   return parenthesize(identifier_name + " assignment", {value});
 }
 
+std::string Logical::print() const {
+  return parenthesize(op.get_lexeme(), {left, right});
+}
+
 LiteralType Literal::evaluate(Environment *environment) { return value; }
 
 LiteralType Variable::evaluate(Environment *environment) {
@@ -139,6 +143,20 @@ LiteralType Assign::evaluate(Environment *environment) {
   return value;
 }
 
+LiteralType Logical::evaluate(Environment *environment) {
+  LiteralType left_vale = left->evaluate(environment);
+  // 'and', 'or' are short-circuit
+  if (op.get_tokentype() == TokenType::Or) {
+    if (static_cast<bool>(left_vale))
+      return static_cast<bool>(left_vale);
+  } else {
+    if (!static_cast<bool>(left_vale))
+      return static_cast<bool>(left_vale);
+  }
+
+  return static_cast<bool>(right->evaluate(environment));
+}
+
 void delete_expr(Expr *expr) {
   if (expr == nullptr)
     return;
@@ -154,12 +172,12 @@ void delete_expr(Expr *expr) {
   } else if (auto grouping = dynamic_cast<Grouping *>(expr)) {
     delete_expr(grouping->expr);
     grouping->expr = nullptr;
-  } else if (auto assign = dynamic_cast<Assign*>(expr)) {
+  } else if (auto assign = dynamic_cast<Assign *>(expr)) {
     delete_expr(assign->value);
     assign->value = nullptr;
   } else {
     // Literal has no child node, we can ignore it
-    // Variable does not allocate on heap, can ignore it as well 
+    // Variable does not allocate on heap, can ignore it as well
   }
 
   delete expr;

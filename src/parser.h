@@ -11,13 +11,21 @@
 // program -> declaration* EOF ;
 // declaration -> varDecl | statement ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | printStmt | block;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
 // block -> "{" declaration* "}" ;
 // exprStmt -> expression ";" ;
 // printStmt -> "print" expression ";" ;
+// ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
+// whileStmt -> "while" "(" expression ")" statement ;
+// forStmt -> "for" "(" ( varDecl | exprStmt | ";")
+//             expression? ";"
+//             expression? ")" statement ;
 //
 // expression -> assignment;
-// assignment -> IDENTIFIER "=" assignment | equality
+// assignment -> IDENTIFIER "=" assignment | | logic_or ;
+// logic_or -> logic_and ( "or" logic_and )* ;
+// logic_and ->  equality ( "and" equality )* ;
+// equality -> comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
 // unary -> ("!" | "-" ) unary | primary ;
@@ -45,11 +53,16 @@ private:
   Stmt *declaration();
   Stmt *var_declaration();
   Stmt *statement();
-  std::vector<Stmt*> block();
+  std::vector<Stmt *> block();
+  Stmt *if_statement();
+  Stmt *while_statement();
+  Stmt *for_statement();
   Stmt *print_statement();
   Stmt *expression_statement();
   Expr *expression();
   Expr *assignment();
+  Expr *logic_or();
+  Expr *logic_and();
   Expr *equality();
   Expr *comparison();
   Expr *term();

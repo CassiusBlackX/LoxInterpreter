@@ -8,10 +8,15 @@
 // program -> declaration* EOF ;
 // declaration -> varDecl | statement ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | printStmt | block;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
 // block -> "{" declaration* "}" ;
 // exprStmt -> expression ";" ;
 // printStmt -> "print" expression ";" ;
+// ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
+// whileStmt -> "while" "(" expression ")" statement ;
+// forStmt -> "for" "(" ( varDecl | exprStmt | ";")
+//             expression? ";"
+//             expression? ")" statement ;
 
 struct Stmt {
   virtual ~Stmt() = default;
@@ -48,6 +53,24 @@ struct Block : public Stmt {
   void execute(Environment *environment) override;
 };
 
-void delete_stmt(Stmt* stmt);
+struct IfStmt : public Stmt {
+  Expr *condition;
+  Stmt *then_branch;
+  Stmt *else_branch;
+
+  IfStmt(Expr *cond, Stmt *then, Stmt *else_)
+      : condition(cond), then_branch(then), else_branch(else_) {}
+  void execute(Environment *environment) override;
+};
+
+struct WhileStmt : public Stmt {
+  Expr *condition;
+  Stmt *body;
+
+  WhileStmt(Expr *cond, Stmt *body) : condition(cond), body(body) {}
+  void execute(Environment *environment) override;
+};
+
+void delete_stmt(Stmt *stmt);
 
 #endif // STMT_H_

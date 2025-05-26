@@ -5,7 +5,9 @@
 #define EXPR_H_
 
 // expression -> assignment;
-// assignment -> IDENTIFIER "=" assignment | equality
+// assignment -> IDENTIFIER "=" assignment | | logic_or ;
+// logic_or -> logic_and ( "or" logic_and )* ;
+// logic_and ->  equality ( "and" equality )* ;
 // equality -> comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
@@ -69,6 +71,16 @@ struct Assign : public Expr {
   Assign(const Token &token, Expr *expr) : name(token), value(expr) {}
   std::string print() const override;
   LiteralType evaluate(Environment *environment) override;
+};
+
+struct Logical : public Expr {
+  Expr* left;
+  Token op;
+  Expr* right;
+
+  Logical(Expr* left, const Token& token, Expr* right) : left(left), op(token), right(right) {}
+  std::string print() const override;
+  LiteralType evaluate(Environment* environment) override;
 };
 
 void delete_expr(Expr *expr);

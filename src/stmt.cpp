@@ -3,6 +3,19 @@
 #include <iostream>
 #include <vector>
 
+// program -> declaration* EOF ;
+// declaration -> varDecl | statement ;
+// varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
+// block -> "{" declaration* "}" ;
+// exprStmt -> expression ";" ;
+// printStmt -> "print" expression ";" ;
+// ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
+// whileStmt -> "while" "(" expression ")" statement ;
+// forStmt -> "for" "(" ( varDecl | exprStmt | ";")
+//             expression? ";"
+//             expression? ")" statement ;
+
 void ExprStmt::execute(Environment *_environment) {
   expr->evaluate(_environment);
 }
@@ -36,6 +49,24 @@ static void execute_block(const std::vector<Stmt *> &statements,
 void Block::execute(Environment *environment) {
   Environment block_environment = Environment(environment);
   execute_block(statements, &block_environment);
+}
+
+void IfStmt::execute(Environment *environment) {
+  LiteralType cond_bool = condition->evaluate(environment);
+  // using bool() cast to check if cond is true or false
+  if (static_cast<bool>(cond_bool)) {
+    then_branch->execute(environment);
+  } else if (else_branch != nullptr) {
+    // only when condition == false && got an 'else' statement, will we execute
+    // else statement avoid dangling pointer!
+    else_branch->execute(environment);
+  }
+}
+
+void WhileStmt::execute(Environment* environment) {
+  while (static_cast<bool>(condition->evaluate(environment))) {
+    body->execute(environment);
+  }
 }
 
 void delete_stmt(Stmt *stmt) {

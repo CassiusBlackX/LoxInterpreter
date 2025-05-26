@@ -1,15 +1,30 @@
 #include "parser.h"
 #include "error.h"
 #include <iostream>
-#include <stdexcept>
 #include <string>
 
-// expression -> equality ;
+// program -> declaration* EOF ;
+// declaration -> varDecl | statement ;
+// varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
+// block -> "{" declaration* "}" ;
+// exprStmt -> expression ";" ;
+// printStmt -> "print" expression ";" ;
+// ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
+// whileStmt -> "while" "(" expression ")" statement ;
+// forStmt -> "for" "(" ( varDecl | exprStmt | ";")
+//             expression? ";"
+//             expression? ")" statement ;
+//
+// expression -> assignment;
+// assignment -> IDENTIFIER "=" assignment | | logic_or ;
+// logic_or -> logic_and ( "or" logic_and )* ;
+// logic_and ->  equality ( "and" equality )* ;
 // equality -> comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
 // unary -> ("!" | "-" ) unary | primary ;
-// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" ;
+// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER;
 
 static void token_error(Token token, std::string_view message) {
   if (token.get_tokentype() == TokenType::Eof) {
@@ -50,6 +65,15 @@ Stmt *Parser::statement() {
   if (match({TokenType::LeftBrace})) {
     return new Block(block());
   }
+  if (match({TokenType::If})) {
+    return if_statement();
+  }
+  if (match({TokenType::While})) {
+    return while_statement();
+  }
+  if (match({TokenType::For})) {
+    return for_statement();
+  }
   return expression_statement();
 }
 
@@ -60,6 +84,79 @@ std::vector<Stmt *> Parser::block() {
   }
   consume(TokenType::RightBrace, "Expect '}' after block");
   return statements;
+}
+
+Stmt *Parser::if_statement() {
+  consume(TokenType::LeftParen, "Expect '('  after 'if'");
+  Expr *condition = expression();
+  consume(TokenType::RightParen, "Expect ')' after if condition");
+
+  Stmt *then_branch = statement();
+  Stmt *else_branch = nullptr;
+
+  // always tries to find the nearest 'else' for the current if
+  if (match({TokenType::Else})) {
+    else_branch = statement();
+  }
+  return new IfStmt(condition, then_branch, else_branch);
+}
+
+Stmt *Parser::while_statement() {
+  consume(TokenType::LeftParen, "Expect '(' after 'while'");
+  Expr *condition = expression();
+  consume(TokenType::RightParen, "Expect ')' after while condition");
+  Stmt *body = statement();
+  return new WhileStmt(condition, body);
+}
+
+Stmt *Parser::for_statement() {
+  consume(TokenType::LeftParen, "Expect '(' after 'for'");
+
+  Stmt *initializer;
+  if (match({TokenType::SemiColon})) {
+    initializer = nullptr;
+  } else if (match({TokenType::Var})) {
+    initializer = var_declaration();
+  } else {
+    initializer = expression_statement();
+  }
+
+  Expr *condition = nullptr;
+  if (!check(TokenType::SemiColon)) {
+    condition = expression();
+  }
+  consume(TokenType::SemiColon, "Expect ';' after loop condition");
+
+  Expr *incretment = nullptr;
+  if (!check(TokenType::RightParen)) {
+    incretment = expression();
+  }
+  consume(TokenType::RightParen, "Expect ')' after for clauses");
+
+  Stmt *body = statement();
+  // for (var i = 0; i < 10; i++) { body; }
+  // -------------------
+  // var i = 0;
+  // while (i < 10) { body; i++; }
+
+  if (incretment != nullptr) {
+    // incretment is done every time after body
+    // directly push_back incretment after body, making it a new body
+    body = new Block({body, new ExprStmt(incretment)});
+  }
+
+  if (condition == nullptr) {
+    // no condition means true
+    condition = new Literal(true);
+  }
+  // together with condition, the for loop is turned into a while loop
+  body = new WhileStmt(condition, body);
+
+  if (initializer != nullptr) {
+    // if there is an initializer, the initializer is ahead of while
+    body = new Block({initializer, body});
+  }
+  return body;
 }
 
 Stmt *Parser::print_statement() {
@@ -77,7 +174,7 @@ Stmt *Parser::expression_statement() {
 Expr *Parser::expression() { return assignment(); }
 
 Expr *Parser::assignment() {
-  Expr *expr = equality();
+  Expr *expr = logic_or();
 
   if (match({TokenType::Equal})) {
     Token equal = previous();
@@ -92,10 +189,32 @@ Expr *Parser::assignment() {
   return expr;
 }
 
+Expr *Parser::logic_or() {
+  Expr *expr = logic_and();
+
+  while (match({TokenType::Or})) {
+    Token op = previous();
+    Expr *right = logic_and();
+    expr = new Logical(expr, op, right);
+  }
+  return expr;
+}
+
+Expr *Parser::logic_and() {
+  Expr *expr = equality();
+
+  while (match({TokenType::And})) {
+    Token op = previous();
+    Expr *right = equality();
+    expr = new Logical(expr, op, right);
+  }
+  return expr;
+}
+
 Expr *Parser::equality() {
   Expr *expr = comparison();
 
-  while (match({TokenType::BangEqual, TokenType::Equal})) {
+  while (match({TokenType::BangEqual, TokenType::EqualEqual})) {
     Token op = previous();
     Expr *right = comparison();
     expr = new Binary(expr, op, right);
