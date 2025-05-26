@@ -30,29 +30,6 @@ static void check_number_operands(const Token &op, const LiteralType &operand1,
   throw RuntimeError(op, "Operands must be two Number");
 }
 
-void delete_expr(Expr *expr) {
-  if (expr == nullptr)
-    return;
-
-  if (auto binary = dynamic_cast<Binary *>(expr)) {
-    delete_expr(binary->left);
-    binary->left = nullptr;
-    delete_expr(binary->right);
-    binary->right = nullptr;
-  } else if (auto unary = dynamic_cast<Unary *>(expr)) {
-    delete_expr(unary->right);
-    unary->right = nullptr;
-  } else if (auto grouping = dynamic_cast<Grouping *>(expr)) {
-    delete_expr(grouping->expr);
-    grouping->expr = nullptr;
-  } else {
-    // Literal has no child node, we can ignore it
-  }
-
-  delete expr;
-  expr = nullptr;
-}
-
 std::string Literal::print() const { return value.to_string(); }
 
 std::string Grouping::print() const { return parenthesize("group", {expr}); }
@@ -160,4 +137,31 @@ LiteralType Assign::evaluate(Environment *environment) {
   LiteralType value_ = value->evaluate(environment);
   environment->assign(name, value_);
   return value;
+}
+
+void delete_expr(Expr *expr) {
+  if (expr == nullptr)
+    return;
+
+  if (auto binary = dynamic_cast<Binary *>(expr)) {
+    delete_expr(binary->left);
+    binary->left = nullptr;
+    delete_expr(binary->right);
+    binary->right = nullptr;
+  } else if (auto unary = dynamic_cast<Unary *>(expr)) {
+    delete_expr(unary->right);
+    unary->right = nullptr;
+  } else if (auto grouping = dynamic_cast<Grouping *>(expr)) {
+    delete_expr(grouping->expr);
+    grouping->expr = nullptr;
+  } else if (auto assign = dynamic_cast<Assign*>(expr)) {
+    delete_expr(assign->value);
+    assign->value = nullptr;
+  } else {
+    // Literal has no child node, we can ignore it
+    // Variable does not allocate on heap, can ignore it as well 
+  }
+
+  delete expr;
+  expr = nullptr;
 }

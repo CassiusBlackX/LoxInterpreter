@@ -48,4 +48,6 @@ struct Block : public Stmt {
   void execute(Environment *environment) override;
 };
 
+void delete_stmt(Stmt* stmt);
+
 #endif // STMT_H_

@@ -27,6 +27,10 @@ void run(const std::string &source) {
   Interpreter interpreter;
   interpreter.interpret(statements);
 
+  for (Stmt *statement : statements) {
+    delete_stmt(statement);
+  }
+
   if (had_error)
     return;
 }

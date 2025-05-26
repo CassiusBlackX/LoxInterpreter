@@ -10,3 +10,4 @@ void Interpreter::interpret(const std::vector<Stmt *> statements) {
     handle_runtime_error(e);
   }
 }
+
