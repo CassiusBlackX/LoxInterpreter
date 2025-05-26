@@ -26,9 +26,3 @@ void Environment::assign(const Token &name, const LiteralType &value) {
   throw RuntimeError(name, "Undefined variable '" + name.get_lexeme() + "'.");
 }
 
-Environment::~Environment() {
-  if (enclosing != nullptr) {
-    delete enclosing;
-    enclosing = nullptr;
-  }
-}

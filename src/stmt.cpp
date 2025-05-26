@@ -22,7 +22,6 @@ void VarDecl::execute(Environment *environment) {
   environment->define(name.get_lexeme(), value);
 }
 
-
 static void execute_block(const std::vector<Stmt *> &statements,
                           Environment *environment) {
   try {
@@ -35,24 +34,25 @@ static void execute_block(const std::vector<Stmt *> &statements,
 }
 
 void Block::execute(Environment *environment) {
-  Environment *block_environment = new Environment(environment);
-  execute_block(statements, block_environment);
+  Environment block_environment = Environment(environment);
+  execute_block(statements, &block_environment);
 }
 
 void delete_stmt(Stmt *stmt) {
-  if (stmt == nullptr) return;
+  if (stmt == nullptr)
+    return;
 
-  if (auto var_decl = dynamic_cast<VarDecl*>(stmt)) {
+  if (auto var_decl = dynamic_cast<VarDecl *>(stmt)) {
     delete_expr(var_decl->initializer);
     var_decl->initializer = nullptr;
-  } else if (auto expr_stmt = dynamic_cast<ExprStmt*>(stmt)) {
+  } else if (auto expr_stmt = dynamic_cast<ExprStmt *>(stmt)) {
     delete_expr(expr_stmt->expr);
     expr_stmt->expr = nullptr;
-  } else if (auto print_stmt = dynamic_cast<PrintStmt*>(stmt)) {
+  } else if (auto print_stmt = dynamic_cast<PrintStmt *>(stmt)) {
     delete_expr(print_stmt->expr);
     print_stmt->expr = nullptr;
-  } else if (auto block_stmt = dynamic_cast<Block*>(stmt)) {
-    for (Stmt* stat : block_stmt->statements) {
+  } else if (auto block_stmt = dynamic_cast<Block *>(stmt)) {
+    for (Stmt *stat : block_stmt->statements) {
       delete_stmt(stat);
       stat = nullptr;
     }
