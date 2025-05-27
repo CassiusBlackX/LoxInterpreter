@@ -181,9 +181,9 @@ Expr *Parser::assignment() {
     Expr *value = assignment();
 
     if (auto var = dynamic_cast<Variable *>(expr)) {
-      Token name = var->name;
-      return new Assign(name, value);
+      return new Assign(var, value);
     }
+    delete_expr(value);
     error(equal, "Invalid assignment target");
   }
   return expr;

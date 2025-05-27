@@ -2,6 +2,7 @@
 #include "error.h"
 #include <cassert>
 #include <initializer_list>
+#include <iterator>
 #include <string>
 #include <string_view>
 
@@ -45,7 +46,7 @@ std::string Binary::print() const {
 std::string Variable::print() const { return name.to_string(); }
 
 std::string Assign::print() const {
-  std::string identifier_name = name.get_lexeme();
+  std::string identifier_name = target->name.get_lexeme();
   return parenthesize(identifier_name + " assignment", {value});
 }
 
@@ -139,7 +140,7 @@ LiteralType Binary::evaluate(Environment *environment) {
 
 LiteralType Assign::evaluate(Environment *environment) {
   LiteralType value_ = value->evaluate(environment);
-  environment->assign(name, value_);
+  environment->assign(target->name, value_);
   return value;
 }
 
@@ -173,9 +174,11 @@ void delete_expr(Expr *expr) {
     delete_expr(grouping->expr);
     grouping->expr = nullptr;
   } else if (auto assign = dynamic_cast<Assign *>(expr)) {
+    delete_expr(assign->target);
+    assign->target = nullptr;
     delete_expr(assign->value);
     assign->value = nullptr;
-  } else if (auto logical_expr = dynamic_cast<Logical*>(expr)) {
+  } else if (auto logical_expr = dynamic_cast<Logical *>(expr)) {
     delete_expr(logical_expr->left);
     logical_expr->left = nullptr;
     delete_expr(logical_expr->right);

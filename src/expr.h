@@ -65,22 +65,23 @@ struct Binary : public Expr {
 };
 
 struct Assign : public Expr {
-  Token name;
+  Variable* target;
   Expr *value;
 
-  Assign(const Token &token, Expr *expr) : name(token), value(expr) {}
+  Assign(Variable *target, Expr *value) : target(target), value(value) {}
   std::string print() const override;
   LiteralType evaluate(Environment *environment) override;
 };
 
 struct Logical : public Expr {
-  Expr* left;
+  Expr *left;
   Token op;
-  Expr* right;
+  Expr *right;
 
-  Logical(Expr* left, const Token& token, Expr* right) : left(left), op(token), right(right) {}
+  Logical(Expr *left, const Token &token, Expr *right)
+      : left(left), op(token), right(right) {}
   std::string print() const override;
-  LiteralType evaluate(Environment* environment) override;
+  LiteralType evaluate(Environment *environment) override;
 };
 
 void delete_expr(Expr *expr);
