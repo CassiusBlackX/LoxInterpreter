@@ -175,9 +175,14 @@ void delete_expr(Expr *expr) {
   } else if (auto assign = dynamic_cast<Assign *>(expr)) {
     delete_expr(assign->value);
     assign->value = nullptr;
+  } else if (auto logical_expr = dynamic_cast<Logical*>(expr)) {
+    delete_expr(logical_expr->left);
+    logical_expr->left = nullptr;
+    delete_expr(logical_expr->right);
+    logical_expr->right = nullptr;
   } else {
-    // Literal has no child node, we can ignore it
-    // Variable does not allocate on heap, can ignore it as well
+    // Literal has no child node, do nothing here
+    // Variable has no child node, do nothing here
   }
 
   delete expr;

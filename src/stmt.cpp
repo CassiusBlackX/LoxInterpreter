@@ -87,6 +87,18 @@ void delete_stmt(Stmt *stmt) {
       delete_stmt(stat);
       stat = nullptr;
     }
+  } else if (auto if_stmt = dynamic_cast<IfStmt*>(stmt)) {
+    delete_expr(if_stmt->condition);
+    if_stmt->condition = nullptr;
+    delete_stmt(if_stmt->then_branch);
+    if_stmt->then_branch = nullptr;
+    delete_stmt(if_stmt->else_branch);
+    if_stmt->else_branch = nullptr;
+  }else if (auto while_stmt = dynamic_cast<WhileStmt*>(stmt)) {
+    delete_expr(while_stmt->condition);
+    while_stmt->condition = nullptr;
+    delete_stmt(while_stmt->body);
+    while_stmt->body = nullptr;
   }
   delete stmt;
   stmt = nullptr;
