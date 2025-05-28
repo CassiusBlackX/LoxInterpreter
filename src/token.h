@@ -1,47 +1,13 @@
+#ifndef TOKEN_H_
+#define TOKEN_H_
+
 #include <cassert>
 #include <cstddef>
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <variant>
 
-#ifndef TOKEN_H_
-#define TOKEN_H_
-
-class LiteralType {
-public:
-  enum class Type {
-    Identifer,
-    String,
-    Bool,
-    Nil,
-    Number,
-  };
-
-  LiteralType() : value_(nullptr), type_(Type::Nil) {}
-  LiteralType(double d) : value_(d), type_(Type::Number) {}
-  LiteralType(bool b) : value_(b), type_(Type::Bool) {}
-  LiteralType(std::string str, Type ty) : value_(std::move(str)), type_(ty) {
-    assert(ty == Type::String || ty == Type::Identifer);
-  }
-
-  bool operator==(const LiteralType &other) const;
-  std::string to_string() const;
-  Type get_type() const { return type_; }
-
-  explicit operator double() const;
-  explicit operator bool() const;
-  explicit operator std::nullptr_t() const;
-
-  friend std::ostream &operator<<(std::ostream &os, LiteralType literal) {
-    os << literal.to_string();
-    return os;
-  }
-
-private:
-  std::variant<double, bool, std::string, std::nullptr_t> value_;
-  Type type_;
-};
+#include "object.h"
 
 enum class TokenType {
   // single character tokens
@@ -113,14 +79,14 @@ public:
   TokenType get_tokentype() const { return type; }
   std::string get_lexeme() const { return lexeme; }
   size_t get_line() const { return line; }
-  LiteralType get_literal() const { return literal; }
+  Object get_literal() const { return literal; }
 
 private:
   TokenType type;
   // lexeme must not be modified or else LiteralType
   // might be dangling!
   const std::string lexeme;
-  LiteralType literal;
+  Object literal;
   size_t line;
 };
 

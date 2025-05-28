@@ -262,16 +262,44 @@ Expr *Parser::unary() {
     Expr *right = unary();
     return new Unary(op, right);
   }
-  return primary();
+  return call();
+}
+
+Expr *Parser::call() {
+  Expr *expr = primary();
+
+  while (true) {
+    if (match({TokenType::LeftParen})) {
+      expr = finish_call(expr);
+    } else {
+      break;
+    }
+  }
+  return expr;
+}
+
+Expr *Parser::finish_call(Expr *callee) {
+  std::vector<Expr *> arguments;
+  if (!check(TokenType::RightParen)) {
+    do {
+      if (arguments.size() >= 255) {
+        error(peek(), "Can't have more than 255 arguments");
+      }
+      arguments.push_back(expression());
+    } while (match({TokenType::Comma}));
+  }
+
+  Token paren = consume(TokenType::RightParen, "Expect ')' after arguments");
+  return new Call(callee, paren, arguments);
 }
 
 Expr *Parser::primary() {
   if (match({TokenType::False})) {
-    return new Literal(LiteralType(false));
+    return new Literal(Object(false));
   } else if (match({TokenType::True})) {
-    return new Literal(LiteralType(true));
+    return new Literal(Object(true));
   } else if (match({TokenType::Nil})) {
-    return new Literal(LiteralType());
+    return new Literal(Object());
   } else if (match({TokenType::Number, TokenType::String})) {
     return new Literal(previous().get_literal());
   } else if (match({TokenType::Identifier})) {

@@ -21,13 +21,13 @@ void ExprStmt::execute(Environment *_environment) {
 }
 
 void PrintStmt::execute(Environment *_environment) {
-  LiteralType value = expr->evaluate(_environment);
+  Object value = expr->evaluate(_environment);
   std::cout << value << std::endl;
 }
 
 void VarDecl::execute(Environment *environment) {
-  LiteralType value = LiteralType(); // if the value does not have an
-                                     // initializer, its value will be null
+  Object value = Object(); // if the value does not have an
+                           // initializer, its value will be null
   if (initializer != nullptr) {
     value = initializer->evaluate(environment);
   }
@@ -52,7 +52,7 @@ void Block::execute(Environment *environment) {
 }
 
 void IfStmt::execute(Environment *environment) {
-  LiteralType cond_bool = condition->evaluate(environment);
+  Object cond_bool = condition->evaluate(environment);
   // using bool() cast to check if cond is true or false
   if (static_cast<bool>(cond_bool)) {
     then_branch->execute(environment);
@@ -63,7 +63,7 @@ void IfStmt::execute(Environment *environment) {
   }
 }
 
-void WhileStmt::execute(Environment* environment) {
+void WhileStmt::execute(Environment *environment) {
   while (static_cast<bool>(condition->evaluate(environment))) {
     body->execute(environment);
   }
@@ -87,14 +87,14 @@ void delete_stmt(Stmt *stmt) {
       delete_stmt(stat);
       stat = nullptr;
     }
-  } else if (auto if_stmt = dynamic_cast<IfStmt*>(stmt)) {
+  } else if (auto if_stmt = dynamic_cast<IfStmt *>(stmt)) {
     delete_expr(if_stmt->condition);
     if_stmt->condition = nullptr;
     delete_stmt(if_stmt->then_branch);
     if_stmt->then_branch = nullptr;
     delete_stmt(if_stmt->else_branch);
     if_stmt->else_branch = nullptr;
-  }else if (auto while_stmt = dynamic_cast<WhileStmt*>(stmt)) {
+  } else if (auto while_stmt = dynamic_cast<WhileStmt *>(stmt)) {
     delete_expr(while_stmt->condition);
     while_stmt->condition = nullptr;
     delete_stmt(while_stmt->body);

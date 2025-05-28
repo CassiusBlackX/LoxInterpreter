@@ -1,11 +1,11 @@
+#ifndef SCANNER_H_
+#define SCANNER_H_
+
 #include <cstddef>
 #include <string>
 #include <vector>
 
 #include "token.h"
-
-#ifndef SCANNER_H_
-#define SCANNER_H_
 
 class Scanner {
 public:

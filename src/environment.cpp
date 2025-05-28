@@ -1,18 +1,19 @@
 #include "environment.h"
 #include "error.h"
 
-LiteralType Environment::get(const Token &name) const {
+Object Environment::get(const Token &name) const {
   if (values.contains(name.get_lexeme())) {
     return values.at(name.get_lexeme());
   }
 
-  if (enclosing != nullptr) return enclosing->get(name);
+  if (enclosing != nullptr)
+    return enclosing->get(name);
 
   throw RuntimeError(name, std::string("Undefined variable '") +
                                name.get_lexeme() + "'.");
 }
 
-void Environment::assign(const Token &name, const LiteralType &value) {
+void Environment::assign(const Token &name, const Object &value) {
   if (values.contains(name.get_lexeme())) {
     values[name.get_lexeme()] = value;
     return;
@@ -25,4 +26,3 @@ void Environment::assign(const Token &name, const LiteralType &value) {
 
   throw RuntimeError(name, "Undefined variable '" + name.get_lexeme() + "'.");
 }
-

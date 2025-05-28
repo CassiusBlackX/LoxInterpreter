@@ -1,13 +1,3 @@
-#include <cstddef>
-#include <initializer_list>
-#include <stdexcept>
-#include <string_view>
-#include <vector>
-
-#include "expr.h"
-#include "stmt.h"
-#include "token.h"
-
 // program -> declaration* EOF ;
 // declaration -> varDecl | statement ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
@@ -28,11 +18,24 @@
 // equality -> comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
-// unary -> ("!" | "-" ) unary | primary ;
+// unary -> ("!" | "-" ) unary | call;
+// call -> primary ( "(" arguments? ")" )* ;
+// arguments -> expression ( "," expression )* ;
 // primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER;
 
 #ifndef PARSER_H_
 #define PARSER_H_
+
+#include <cstddef>
+#include <initializer_list>
+#include <stdexcept>
+#include <string_view>
+#include <vector>
+
+#include "expr.h"
+#include "stmt.h"
+#include "token.h"
+
 
 class Parser {
 public:
@@ -68,6 +71,8 @@ private:
   Expr *term();
   Expr *factor();
   Expr *unary();
+  Expr *call();
+  Expr *finish_call(Expr* callee);
   Expr *primary();
   Token advance();
   bool match(std::initializer_list<TokenType> types);

@@ -1,9 +1,9 @@
+#ifndef STMT_H_
+#define STMT_H_
+
 #include "environment.h"
 #include "expr.h"
 #include <vector>
-
-#ifndef STMT_H_
-#define STMT_H_
 
 // program -> declaration* EOF ;
 // declaration -> varDecl | statement ;

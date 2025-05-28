@@ -2,9 +2,10 @@
 #include "error.h"
 #include <cassert>
 #include <initializer_list>
-#include <iterator>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 static std::string parenthesize(const std::string_view name,
                                 std::initializer_list<Expr *> exprs) {
@@ -17,16 +18,16 @@ static std::string parenthesize(const std::string_view name,
   return result + ')';
 }
 
-static void check_number_operand(const Token &op, const LiteralType &operand) {
-  if (operand.get_type() == LiteralType::Type::Number)
+static void check_number_operand(const Token &op, const Object &operand) {
+  if (operand.get_type() == Object::Type::Number)
     return;
   throw RuntimeError(op, "Operand must be a Number");
 }
 
-static void check_number_operands(const Token &op, const LiteralType &operand1,
-                                  const LiteralType &operand2) {
-  if (operand1.get_type() == LiteralType::Type::Number &&
-      operand2.get_type() == LiteralType::Type::Number)
+static void check_number_operands(const Token &op, const Object &operand1,
+                                  const Object &operand2) {
+  if (operand1.get_type() == Object::Type::Number &&
+      operand2.get_type() == Object::Type::Number)
     return;
   throw RuntimeError(op, "Operands must be two Number");
 }
@@ -54,98 +55,103 @@ std::string Logical::print() const {
   return parenthesize(op.get_lexeme(), {left, right});
 }
 
-LiteralType Literal::evaluate(Environment *environment) { return value; }
+std::string Call::print() const {
+  std::string func_name = callee->print();
+  return "Call " + func_name;
+}
 
-LiteralType Variable::evaluate(Environment *environment) {
+Object Literal::evaluate(Environment *environment) { return value; }
+
+Object Variable::evaluate(Environment *environment) {
   return environment->get(name);
 }
 
-LiteralType Grouping::evaluate(Environment *environment) {
+Object Grouping::evaluate(Environment *environment) {
   return expr->evaluate(environment);
 }
 
-LiteralType Unary::evaluate(Environment *environment) {
-  LiteralType right_value = right->evaluate(environment);
+Object Unary::evaluate(Environment *environment) {
+  Object right_value = right->evaluate(environment);
   switch (op.get_tokentype()) {
   case TokenType::Minus: {
     check_number_operand(op, right_value);
     double value = -static_cast<double>(right_value);
-    return LiteralType(value);
+    return Object(value);
   }
   case TokenType::Bang: {
     bool value = !static_cast<bool>(right_value);
-    return LiteralType(value);
+    return Object(value);
   }
   default:
-    return LiteralType(); // return Nil by default
+    return Object(); // return Nil by default
   }
 }
 
-LiteralType Binary::evaluate(Environment *environment) {
-  LiteralType left_value = left->evaluate(environment);
-  LiteralType right_value = right->evaluate(environment);
+Object Binary::evaluate(Environment *environment) {
+  Object left_value = left->evaluate(environment);
+  Object right_value = right->evaluate(environment);
 
   switch (op.get_tokentype()) {
   case TokenType::Minus:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) -
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) -
+                  static_cast<double>(right_value));
   case TokenType::Slash:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) /
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) /
+                  static_cast<double>(right_value));
   case TokenType::Star:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) *
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) *
+                  static_cast<double>(right_value));
   case TokenType::Plus:
-    if (left_value.get_type() == LiteralType::Type::Number &&
-        right_value.get_type() == LiteralType::Type::Number) {
-      return LiteralType(static_cast<double>(left_value) +
-                         static_cast<double>(right_value));
+    if (left_value.get_type() == Object::Type::Number &&
+        right_value.get_type() == Object::Type::Number) {
+      return Object(static_cast<double>(left_value) +
+                    static_cast<double>(right_value));
     }
-    if (left_value.get_type() == LiteralType::Type::String &&
-        right_value.get_type() == LiteralType::Type::String) {
+    if (left_value.get_type() == Object::Type::String &&
+        right_value.get_type() == Object::Type::String) {
       // Type::String can use `+` to append
-      return LiteralType(left_value.to_string() + right_value.to_string(),
-                         LiteralType::Type::String);
+      return Object(left_value.to_string() + right_value.to_string(),
+                    Object::Type::String);
     }
     throw RuntimeError(op, "Operands must be two Number or two String");
   case TokenType::Greater:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) >
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) >
+                  static_cast<double>(right_value));
   case TokenType::GreaterEqual:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) >=
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) >=
+                  static_cast<double>(right_value));
   case TokenType::Less:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) <
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) <
+                  static_cast<double>(right_value));
   case TokenType::LessEqual:
     check_number_operands(op, left_value, right_value);
-    return LiteralType(static_cast<double>(left_value) <=
-                       static_cast<double>(right_value));
+    return Object(static_cast<double>(left_value) <=
+                  static_cast<double>(right_value));
   case TokenType::EqualEqual:
     // reused the `==` operator
-    return LiteralType(left_value == right_value);
+    return Object(left_value == right_value);
   case TokenType::BangEqual:
     // reused the `==` operator
-    return LiteralType(!(left_value == right_value));
+    return Object(!(left_value == right_value));
   default:
-    return LiteralType(); // return Nil by default
+    return Object(); // return Nil by default
   }
 }
 
-LiteralType Assign::evaluate(Environment *environment) {
-  LiteralType value_ = value->evaluate(environment);
+Object Assign::evaluate(Environment *environment) {
+  Object value_ = value->evaluate(environment);
   environment->assign(target->name, value_);
   return value;
 }
 
-LiteralType Logical::evaluate(Environment *environment) {
-  LiteralType left_vale = left->evaluate(environment);
+Object Logical::evaluate(Environment *environment) {
+  Object left_vale = left->evaluate(environment);
   // 'and', 'or' are short-circuit
   if (op.get_tokentype() == TokenType::Or) {
     if (static_cast<bool>(left_vale))
@@ -156,6 +162,28 @@ LiteralType Logical::evaluate(Environment *environment) {
   }
 
   return static_cast<bool>(right->evaluate(environment));
+}
+
+Object Call::evaluate(Environment *environment) {
+  Object callee_value = callee->evaluate(environment);
+  std::vector<Object> arguments_value;
+  arguments_value.reserve(arguments.size());
+  for (Expr *arg : arguments) {
+    arguments_value.push_back(arg->evaluate(environment));
+  }
+
+  if (auto callable = dynamic_cast<Callable *>(callee)) {
+    if (arguments_value.size() == callable->arity()) {
+      return callable->call(environment, arguments_value);
+    } else {
+      std::ostringstream oss;
+      oss << "Expected " << callable->arity() << " arguments, but got "
+          << arguments_value.size() << ".";
+      throw RuntimeError(paren, oss.str());
+    }
+  } else {
+    throw RuntimeError(paren, "can only call functions and classes.");
+  }
 }
 
 void delete_expr(Expr *expr) {

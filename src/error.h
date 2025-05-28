@@ -1,11 +1,11 @@
+#ifndef ERROR_H_
+#define ERROR_H_
+
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
 #include "token.h"
-
-#ifndef ERROR_H_
-#define ERROR_H_
 
 void error(std::size_t, const std::string &);
 
