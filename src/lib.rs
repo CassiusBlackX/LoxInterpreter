@@ -1,31 +1,43 @@
-mod ast;
-mod expression;
+mod environment;
 mod error;
-mod scanner;
-mod token;
+mod expr;
+mod interpreter;
+mod object;
 mod parser;
+mod scanner;
+mod stmt;
+mod token;
 
 use std::io::{self, Read, Write};
 
+use error::LoxError;
+use interpreter::Interpreter;
+use parser::Parser;
 use scanner::Scanner;
 
-fn run(source: String) {
-    let mut scanner = Scanner::new(source);
+fn run(source: String) -> Result<(), LoxError> {
+    let scanner = Scanner::new(source);
     let tokens = scanner.scan_tokens();
-    for token in tokens {
-        println!("{token}");
-    }
-}
 
-pub fn run_file(path: String) -> io::Result<()> {
-    let mut file = std::fs::File::open(path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-    run(contents);
+    let mut parser = Parser::new(tokens);
+    let statements = parser.parse()?;
+
+    let mut interpreter = Interpreter::new();
+    interpreter.interpret(&statements)?;
+
     Ok(())
 }
 
-pub fn run_prompt() -> io::Result<()> {
+pub fn run_file(path: String) -> Result<(), LoxError> {
+    let mut file = std::fs::File::open(path).expect("failed to open file!");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("failed to read the file into String");
+    run(contents)?;
+    Ok(())
+}
+
+pub fn run_prompt() -> Result<(), LoxError> {
     let stdin = io::stdin();
 
     loop {
@@ -33,13 +45,15 @@ pub fn run_prompt() -> io::Result<()> {
         io::stdout().flush().unwrap();
 
         let mut line = String::new();
-        let bytes_read = stdin.read_line(&mut line)?;
+        let bytes_read = stdin
+            .read_line(&mut line)
+            .expect("failed to read in stdin into String");
 
         if bytes_read == 0 {
             println!("user input end");
             break;
         }
-        run(line);
+        run(line)?;
     }
     Ok(())
 }

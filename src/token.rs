@@ -3,7 +3,8 @@ use std::fmt;
 use phf::phf_map;
 use strum_macros::Display;
 
-#[allow(dead_code)]
+use crate::object::Object;
+
 #[derive(Debug, Copy, Clone, PartialEq, Display)]
 pub enum TokenType {
     // single character tokens
@@ -75,43 +76,16 @@ pub fn match_keywords(word: &str) -> Option<TokenType> {
     KEYWORDS.get(word).copied()
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LiteralType {
-    Identifier(String),
-    String_(String),
-    Bool(bool),
-    Nil,
-    Number(f64),
-    // TODO: we should respectively give integer and float!
-}
-
-impl fmt::Display for LiteralType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Identifier(ident) => write!(f, "{ident}"),
-            Self::String_(content) => write!(f, "{content}"),
-            Self::Number(x) => write!(f, "{x}"),
-            Self::Bool(flag) => write!(f, "{}", if *flag { "true" } else { "false" }),
-            Self::Nil => write!(f, "Nil"),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Token {
     type_: TokenType,
     lexeme: String,
-    pub literal: Option<LiteralType>,
+    literal: Option<Object>,
     line: usize,
 }
 
 impl Token {
-    pub fn new(
-        type_: TokenType,
-        lexeme: String,
-        literal: Option<LiteralType>,
-        line: usize,
-    ) -> Self {
+    pub fn new(type_: TokenType, lexeme: String, literal: Option<Object>, line: usize) -> Self {
         Self {
             type_,
             lexeme,
@@ -128,11 +102,15 @@ impl Token {
         &self.lexeme
     }
 
-    pub fn get_literal(&self) -> Option<&LiteralType> {
+    pub fn get_literal(&self) -> Option<&Object> {
         match &self.literal {
             None => None,
             Some(l) => Some(l),
         }
+    }
+
+    pub fn take_literal(self) -> Option<Object> {
+        self.literal
     }
 
     pub fn get_line(&self) -> usize {

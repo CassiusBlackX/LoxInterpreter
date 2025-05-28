@@ -1,0 +1,16 @@
+print "while loop";
+var i = 0;
+while (i < 10) {
+  var j  =0;
+  while (j < 10) {
+    print i + j;
+    j = j + 1;
+  }
+  i = i + 1;
+}
+print "for loop: ";
+for (var i = 0; i < 10; i = i + 1) {
+  for (var j = 0; j < 10; j = j + 1) {
+    print i + j;
+  }
+}

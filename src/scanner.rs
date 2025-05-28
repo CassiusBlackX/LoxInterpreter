@@ -1,4 +1,5 @@
-use crate::token::{LiteralType, Token, TokenType, match_keywords};
+use crate::object::Object;
+use crate::token::{Token, TokenType, match_keywords};
 
 pub struct Scanner {
     source: String,
@@ -19,14 +20,16 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    // scanner will no longer live after `scan_tokens`
+    // so we return the ownership of tokens out,
+    pub fn scan_tokens(mut self) -> Vec<Token> {
         while !self.at_end() {
             self.start = self.current;
             self.scan_token();
         }
         self.tokens
             .push(Token::new(TokenType::Eof, String::new(), None, self.line));
-        self.tokens.clone()
+        self.tokens
     }
 
     fn scan_token(&mut self) {
@@ -146,7 +149,7 @@ impl Scanner {
         self.source.chars().nth(self.current + 1).unwrap()
     }
 
-    fn add_token(&mut self, type_: TokenType, literal: Option<LiteralType>) {
+    fn add_token(&mut self, type_: TokenType, literal: Option<Object>) {
         let lexeme = self.source[self.start..self.current].to_string();
         self.tokens
             .push(Token::new(type_, lexeme, literal, self.line));
@@ -165,7 +168,7 @@ impl Scanner {
         }
         self.advance(); // consume the closing '"'
         let value = self.source[self.start + 1..self.current - 1].to_string();
-        self.add_token(TokenType::String_, Some(LiteralType::String_(value)));
+        self.add_token(TokenType::String_, Some(Object::String_(value)));
     }
 
     fn number(&mut self) {
@@ -180,7 +183,7 @@ impl Scanner {
         }
         let value = self.source[self.start..self.current].to_string();
         let value = value.parse::<f64>().unwrap();
-        self.add_token(TokenType::Number, Some(LiteralType::Number(value)));
+        self.add_token(TokenType::Number, Some(Object::Number(value)));
     }
 
     fn identifier(&mut self) {
@@ -190,24 +193,17 @@ impl Scanner {
         let value = &self.source[self.start..self.current];
         let type_ = match_keywords(value);
         match type_ {
-            Some(TokenType::True) => self.add_token(TokenType::True, Some(LiteralType::Bool(true))),
-            Some(TokenType::False) => {
-                self.add_token(TokenType::False, Some(LiteralType::Bool(false)))
-            }
-            Some(TokenType::Nil) => self.add_token(TokenType::Nil, Some(LiteralType::Nil)),
+            Some(TokenType::True) => self.add_token(TokenType::True, Some(Object::Bool(true))),
+            Some(TokenType::False) => self.add_token(TokenType::False, Some(Object::Bool(false))),
+            Some(TokenType::Nil) => self.add_token(TokenType::Nil, Some(Object::Nil)),
             Some(x) => self.add_token(x, None),
             None => self.add_token(
                 TokenType::Identifier,
-                Some(LiteralType::Identifier(
+                Some(Object::Identifier(
                     self.source[self.start..self.current].to_string(),
                 )),
             ),
         }
-        // if let Some(&ky_type) = type_ {
-        //     self.add_token(ky_type, None);
-        // } else {
-        //     self.add_token(TokenType::Identifier, Some(LiteralType::Identifier(value)));
-        // }
     }
 }
 
@@ -217,7 +213,7 @@ mod test {
     use crate::token::*;
 
     fn scanner_helper(content: String, expected: &[Token]) {
-        let mut scanner = Scanner::new(content);
+        let scanner = Scanner::new(content);
         let got = scanner.scan_tokens();
         assert_eq!(got.len(), expected.len());
         for (index, tk_e) in expected.iter().enumerate() {
@@ -254,25 +250,25 @@ mod test {
             Token::new(
                 TokenType::Identifier,
                 "a".to_string(),
-                Some(LiteralType::Identifier("a".to_string())),
+                Some(Object::Identifier("a".to_string())),
                 1,
             ),
             Token::new(
                 TokenType::Identifier,
                 "b".to_string(),
-                Some(LiteralType::Identifier("b".to_string())),
+                Some(Object::Identifier("b".to_string())),
                 2,
             ),
             Token::new(
                 TokenType::String_,
                 "\"happy\"".to_string(),
-                Some(LiteralType::String_("happy".to_string())),
+                Some(Object::String_("happy".to_string())),
                 2,
             ),
             Token::new(
                 TokenType::Identifier,
                 "c".to_string(),
-                Some(LiteralType::Identifier("c".to_string())),
+                Some(Object::Identifier("c".to_string())),
                 3,
             ),
             Token::new(TokenType::Eof, String::new(), None, 3),
@@ -287,13 +283,13 @@ mod test {
             Token::new(
                 TokenType::Number,
                 "123456".to_string(),
-                Some(LiteralType::Number(123456f64)),
+                Some(Object::Number(123456f64)),
                 1,
             ),
             Token::new(
                 TokenType::Number,
                 "123.456".to_string(),
-                Some(LiteralType::Number(123.456)),
+                Some(Object::Number(123.456)),
                 2,
             ),
             Token::new(TokenType::Eof, String::new(), None, 2),
@@ -310,19 +306,19 @@ mod test {
             Token::new(
                 TokenType::Identifier,
                 "funny".to_string(),
-                Some(LiteralType::Identifier("funny".to_string())),
+                Some(Object::Identifier("funny".to_string())),
                 1,
             ),
             Token::new(
                 TokenType::False,
                 "false".to_string(),
-                Some(LiteralType::Bool(false)),
+                Some(Object::Bool(false)),
                 2,
             ),
             Token::new(
                 TokenType::Identifier,
                 "classifier".to_string(),
-                Some(LiteralType::Identifier("classifier".to_string())),
+                Some(Object::Identifier("classifier".to_string())),
                 2,
             ),
             Token::new(TokenType::Class, "class".to_string(), None, 2),
