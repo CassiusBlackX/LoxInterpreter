@@ -7,13 +7,22 @@ var c ="global c";
   {
     var a = "inner a";
     print a;
+    print "\n";
     print b;
+    print "\n";
     print c;
+    print "\n";
   }
   print a;
+  print "\n";
   print b;
+  print "\n";
   print c;
+  print "\n";
 }
 print a;
+print "\n";
 print b;
+print "\n";
 print c;
+print "\n";

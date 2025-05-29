@@ -33,6 +33,20 @@ impl Interpreter {
     fn evalulate(&mut self, expr: &Expr) -> Result<Object, RuntimeError> {
         expr.accept(self)
     }
+
+    fn execute_block(
+        &mut self,
+        stmts: &[Stmt],
+        environment: Environment,
+    ) -> Result<(), RuntimeError> {
+        let previous = Rc::clone(&self.environment);
+        self.environment = Rc::new(RefCell::new(environment));
+        let result = stmts
+            .iter()
+            .try_for_each(|statement| self.execute(statement));
+        self.environment = previous;
+        result
+    }
 }
 
 impl ExprVisitor<Result<Object, RuntimeError>> for Interpreter {
@@ -150,31 +164,31 @@ impl StmtVisitor<Result<(), RuntimeError>> for Interpreter {
     }
 
     fn visit_expr_stmt(&mut self, stmt: &ExprStmt) -> Result<(), RuntimeError> {
-        self.evalulate(&stmt.expr)?;
-        Ok(())
+        self.evalulate(&stmt.expr).map(|_| ())
     }
 
     fn visit_print_stmt(&mut self, stmt: &PrintStmt) -> Result<(), RuntimeError> {
-        let value = self.evalulate(&stmt.expr)?;
-        println!("{}", value);
-        Ok(())
+        self.evalulate(&stmt.expr).map(|value| {
+            println!("{}", value);
+        })
     }
 
     fn visit_block_stmt(&mut self, stmt: &BlockStmt) -> Result<(), RuntimeError> {
-        for statement in &stmt.statements {
-            self.execute(statement)?;
-        }
-        Ok(())
+        self.execute_block(
+            &stmt.statements,  // only need a slice here
+            Environment::new_with_enclosing(self.environment.clone()),
+        )
     }
 
     fn visit_if_stmt(&mut self, stmt: &IfStmt) -> Result<(), RuntimeError> {
         let condtion_bool = self.evalulate(&stmt.condition)?.get_bool();
         if condtion_bool {
-            self.execute(&stmt.then_branch)?;
+            self.execute(&stmt.then_branch)
         } else if let Some(then_) = stmt.else_branch.as_ref() {
-            self.execute(then_)?;
+            self.execute(then_)
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> Result<(), RuntimeError> {
