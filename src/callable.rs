@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
@@ -6,7 +7,7 @@ use crate::interpreter::{RuntimeError, RuntimeException};
 use crate::stmt::*;
 use crate::{interpreter::Interpreter, object::Object};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Callables {
     Function(Function),
 }
@@ -19,20 +20,28 @@ impl fmt::Display for Callables {
     }
 }
 
+impl PartialEq for Callables {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}
+
 pub trait Callable {
     fn call(&mut self, interpreter: &mut Interpreter, arguments: &[Object]) -> Object;
     fn arity(&self) -> usize;
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Function {
     declaration: Box<FunctionStmt>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl Function {
-    pub fn new(decl: FunctionStmt) -> Self {
+    pub fn new(decl: FunctionStmt, closure: Rc<RefCell<Environment>>) -> Self {
         Self {
             declaration: Box::new(decl),
+            closure,
         }
     }
 }
@@ -43,7 +52,7 @@ impl Callable for Function {
         interpreter: &mut crate::interpreter::Interpreter,
         arguments: &[crate::object::Object],
     ) -> crate::object::Object {
-        let mut environment = Environment::new_with_enclosing(Rc::clone(&interpreter.globals));
+        let mut environment = Environment::new_with_enclosing(self.closure.clone());
         for (index, arg) in self.declaration.params.iter().enumerate() {
             environment.define(arg.get_lexeme(), arguments.get(index).unwrap().clone());
         }

@@ -238,7 +238,7 @@ impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
     }
 
     fn visit_function_stmt(&mut self, stmt: &FunctionStmt) -> Result<(), RuntimeException> {
-        let func = Callables::Function(Function::new(stmt.clone()));
+        let func = Callables::Function(Function::new(stmt.clone(), self.environment.clone()));
         self.environment
             .borrow_mut()
             .define(stmt.name.get_lexeme(), Object::Callables(func));

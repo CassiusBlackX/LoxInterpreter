@@ -1,7 +1,1 @@
-fun func(a, b){
-  var c=a+b;
-  return c;
-}
-var a = 5;
-var b = 8;
-print func(a, b);
+var x_ = 0;

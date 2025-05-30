@@ -187,7 +187,7 @@ impl Scanner {
     }
 
     fn identifier(&mut self) {
-        while self.peek().is_ascii_alphanumeric() {
+        while self.peek().is_ascii_alphanumeric() || self.peek() == '_' {
             self.advance();
         }
         let value = &self.source[self.start..self.current];
