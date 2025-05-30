@@ -5,7 +5,7 @@ use strum_macros::Display;
 
 use crate::object::Object;
 
-#[derive(Debug, Copy, Clone, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Display)]
 pub enum TokenType {
     // single character tokens
     LeftParen,

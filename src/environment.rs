@@ -41,6 +41,18 @@ impl Environment {
         }
     }
 
+    pub fn get_at(&self, distance: usize, name: &Token) -> Result<Object, RuntimeError> {
+        if distance == 0 {
+            self.get(name)
+        } else {
+            self.enclosing
+                .as_ref()
+                .unwrap()
+                .borrow()
+                .get_at(distance - 1, name)
+        }
+    }
+
     pub fn assign(&mut self, name: &Token, value: &Object) -> Result<(), RuntimeError> {
         if self.values.contains_key(name.get_lexeme()) {
             self.values
@@ -54,6 +66,25 @@ impl Environment {
                 "Undefined variable: {}",
                 name.get_lexeme()
             )))
+        }
+    }
+
+    pub fn assign_at(
+        &mut self,
+        distance: usize,
+        name: &Token,
+        value: &Object,
+    ) -> Result<(), RuntimeError> {
+        if distance == 0 {
+            self.values
+                .insert(name.get_lexeme().to_string(), value.to_owned());
+            Ok(())
+        } else {
+            self.enclosing
+                .as_ref()
+                .unwrap()
+                .borrow_mut()
+                .assign_at(distance - 1, name, value)
         }
     }
 }

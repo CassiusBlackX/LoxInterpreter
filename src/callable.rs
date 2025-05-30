@@ -31,6 +31,12 @@ pub trait Callable {
     fn arity(&self) -> usize;
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum FunctionType {
+    None,
+    Function,
+}
+
 #[derive(Debug, Clone)]
 pub struct Function {
     declaration: Box<FunctionStmt>,

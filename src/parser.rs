@@ -1,10 +1,16 @@
 use crate::{
-    error::{ParseError, report},
+    error::{ParseError, token_error},
     expr::*,
     object::Object,
     stmt::*,
     token::{Token, TokenType},
 };
+
+use std::sync::atomic::AtomicUsize;
+static UUID: AtomicUsize = AtomicUsize::new(0);
+fn gen_uuid() -> usize {
+    UUID.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+}
 
 // program -> declaration* EOF ;
 // declaration -> funDecl |varDecl | statement ;
@@ -91,7 +97,10 @@ impl Parser {
         let value = if !self.check(TokenType::SemiColon) {
             self.expression()?
         } else {
-            Expr::Literal(Literal { value: Object::Nil })
+            Expr::Literal(Literal {
+                uuid: gen_uuid(),
+                value: Object::Nil,
+            })
         };
         let _ = self.consume(TokenType::SemiColon, "Expect ';' after return value")?;
         Ok(Stmt::ReturnStmt(ReturnStmt {
@@ -134,7 +143,10 @@ impl Parser {
 
     fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
         let name = self.consume(TokenType::Identifier, "Expect variable name")?;
-        let mut initializer = Expr::Literal(Literal { value: Object::Nil });
+        let mut initializer = Expr::Literal(Literal {
+            uuid: gen_uuid(),
+            value: Object::Nil,
+        });
         if self.token_match(&[TokenType::Equal]) {
             initializer = self.expression()?;
         }
@@ -233,6 +245,7 @@ impl Parser {
             self.expression()?
         } else {
             Expr::Literal(Literal {
+                uuid: gen_uuid(),
                 value: Object::Bool(true),
             })
         };
@@ -293,7 +306,8 @@ impl Parser {
                 match ex {
                     Expr::Variable(var) => {
                         return Ok(Expr::Assign(Assign {
-                            target: var,
+                            uuid: gen_uuid(),
+                            name: var.name,
                             value: Box::new(value),
                         }));
                     }
@@ -313,6 +327,7 @@ impl Parser {
             let op = self.previous();
             let right = self.logic_and()?;
             expr = Ok(Expr::Logical(Logical {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 op,
                 right: Box::new(right),
@@ -328,6 +343,7 @@ impl Parser {
             let op = self.previous();
             let right = self.equality()?;
             expr = Ok(Expr::Logical(Logical {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 op,
                 right: Box::new(right),
@@ -342,6 +358,7 @@ impl Parser {
             let operator = self.previous();
             let right = self.comparison()?;
             expr = Ok(Expr::Binary(Binary {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 operator,
                 right: Box::new(right),
@@ -361,6 +378,7 @@ impl Parser {
             let operator = self.previous();
             let right = self.term()?;
             expr = Ok(Expr::Binary(Binary {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 operator,
                 right: Box::new(right),
@@ -375,6 +393,7 @@ impl Parser {
             let operator = self.previous();
             let right = self.factor()?;
             expr = Ok(Expr::Binary(Binary {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 operator,
                 right: Box::new(right),
@@ -389,6 +408,7 @@ impl Parser {
             let operator = self.previous();
             let right = self.unary()?;
             expr = Ok(Expr::Binary(Binary {
+                uuid: gen_uuid(),
                 left: Box::new(expr?),
                 operator,
                 right: Box::new(right),
@@ -402,6 +422,7 @@ impl Parser {
             let operator = self.previous();
             let right = self.unary()?;
             return Ok(Expr::Unary(Unary {
+                uuid: gen_uuid(),
                 operator,
                 right: Box::new(right),
             }));
@@ -436,6 +457,7 @@ impl Parser {
         }
         let paren = self.consume(TokenType::RightParen, "Expect ')' after arguments")?;
         Ok(Expr::Call(Call {
+            uuid: gen_uuid(),
             callee: Box::new(callee),
             paren,
             arguments,
@@ -445,26 +467,34 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParseError> {
         if self.token_match(&[TokenType::False]) {
             Ok(Expr::Literal(Literal {
+                uuid: gen_uuid(),
                 value: Object::Bool(false),
             }))
         } else if self.token_match(&[TokenType::True]) {
             Ok(Expr::Literal(Literal {
+                uuid: gen_uuid(),
                 value: Object::Bool(true),
             }))
         } else if self.token_match(&[TokenType::Nil]) {
-            Ok(Expr::Literal(Literal { value: Object::Nil }))
+            Ok(Expr::Literal(Literal {
+                uuid: gen_uuid(),
+                value: Object::Nil,
+            }))
         } else if self.token_match(&[TokenType::Number, TokenType::String_]) {
             Ok(Expr::Literal(Literal {
+                uuid: gen_uuid(),
                 value: self.previous().take_literal().unwrap(),
             }))
         } else if self.token_match(&[TokenType::Identifier]) {
             Ok(Expr::Variable(Variable {
+                uuid: gen_uuid(),
                 name: self.previous(),
             }))
         } else if self.token_match(&[TokenType::LeftParen]) {
             let expr = self.expression();
             let _token = self.consume(TokenType::RightParen, "Expect ')' after expression")?;
             Ok(Expr::Grouping(Grouping {
+                uuid: gen_uuid(),
                 expr: Box::new(expr?),
             }))
         } else {
@@ -542,16 +572,5 @@ impl Parser {
             }
         }
         self.advance();
-    }
-}
-
-fn token_error(token: &Token, message: &str) {
-    if token.get_type() == TokenType::Eof {
-        report(token.get_line(), &("at end ".to_string() + message));
-    } else {
-        report(
-            token.get_line(),
-            &("at '".to_string() + token.get_lexeme() + "'. " + message),
-        );
     }
 }

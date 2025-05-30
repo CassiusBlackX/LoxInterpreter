@@ -5,6 +5,7 @@ mod expr;
 mod interpreter;
 mod object;
 mod parser;
+mod resolver;
 mod scanner;
 mod stmt;
 mod token;
@@ -12,9 +13,10 @@ mod token;
 use std::io::{self, Read, Write};
 
 pub use error::LoxError;
-pub use interpreter::RuntimeError;
 use interpreter::Interpreter;
+pub use interpreter::RuntimeError;
 use parser::Parser;
+use resolver::Resolver;
 use scanner::Scanner;
 
 fn run(source: String) -> Result<(), LoxError> {
@@ -25,6 +27,8 @@ fn run(source: String) -> Result<(), LoxError> {
     let statements = parser.parse()?;
 
     let mut interpreter = Interpreter::new();
+    let mut resolver = Resolver::new(&mut interpreter);
+    resolver.resolve_all(&statements)?;
     interpreter.interpret(&statements)?;
 
     Ok(())

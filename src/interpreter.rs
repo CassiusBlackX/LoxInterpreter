@@ -1,9 +1,10 @@
+use std::collections::HashMap;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::callable::*;
 use crate::expr::*;
 use crate::stmt::*;
-use crate::token::TokenType;
+use crate::token::{Token, TokenType};
 use crate::{environment::Environment, object::Object};
 
 pub enum RuntimeException {
@@ -24,6 +25,7 @@ impl From<RuntimeError> for RuntimeException {
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
     environment: Rc<RefCell<Environment>>,
+    locals: HashMap<Expr, usize>,
 }
 
 impl Interpreter {
@@ -32,6 +34,7 @@ impl Interpreter {
         Self {
             globals: Rc::clone(&globals),
             environment: Rc::clone(&globals),
+            locals: HashMap::new(),
         }
     }
 
@@ -69,6 +72,25 @@ impl Interpreter {
         self.environment = previous;
         result
     }
+
+    pub fn resolve(&mut self, expr: &Expr, idx: usize) {
+        self.locals.insert(expr.to_owned(), idx);
+    }
+
+    fn lookup_variable(&mut self, name: &Token, expr: &Expr) -> Result<Object, RuntimeException> {
+        let distance = self.locals.get(expr);
+        if let Some(dis) = distance {
+            self.environment
+                .borrow_mut()
+                .get_at(*dis, name)
+                .map_err(RuntimeException::from)
+        } else {
+            self.globals
+                .borrow_mut()
+                .get(name)
+                .map_err(RuntimeException::from)
+        }
+    }
 }
 
 impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
@@ -77,10 +99,7 @@ impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
     }
 
     fn visit_variable(&mut self, expr: &Variable) -> Result<Object, RuntimeException> {
-        self.environment
-            .borrow_mut()
-            .get(&expr.name)
-            .map_err(RuntimeException::from)
+        self.lookup_variable(&expr.name, &Expr::Variable(expr.to_owned()))
     }
 
     fn visit_grouping(&mut self, expr: &Grouping) -> Result<Object, RuntimeException> {
@@ -156,9 +175,12 @@ impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
 
     fn visit_assign(&mut self, expr: &Assign) -> Result<Object, RuntimeException> {
         let value_ = self.evalulate(&expr.value)?;
-        self.environment
-            .borrow_mut()
-            .assign(&expr.target.name, &value_)?;
+        let distance = self.locals.get(&Expr::Assign(expr.clone()));
+        if let Some(dis) = distance {
+            self.environment
+                .borrow_mut()
+                .assign_at(*dis, &expr.name, &value_)?;
+        }
         Ok(value_)
     }
 
@@ -182,7 +204,7 @@ impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
         }
         // TODO: unimplemented callable here
         if let Object::Callables(Callables::Function(mut function)) = callee {
-            return Ok(function.call(self, &arguments));
+            Ok(function.call(self, &arguments))
         } else {
             panic!("unimplemented!")
         }
@@ -191,7 +213,11 @@ impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
 
 impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
     fn visit_var_decl(&mut self, stmt: &VarDecl) -> Result<(), RuntimeException> {
-        let value = if let Expr::Literal(Literal { value: Object::Nil }) = *stmt.initializer {
+        let value = if let Expr::Literal(Literal {
+            uuid: _x,
+            value: Object::Nil,
+        }) = *stmt.initializer
+        {
             Object::Nil
         } else {
             self.evalulate(&stmt.initializer)?
@@ -246,10 +272,23 @@ impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
     }
 
     fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> Result<(), RuntimeException> {
-        let value = if *stmt.value != Expr::Literal(Literal { value: Object::Nil }) {
-            self.evalulate(&stmt.value)?
-        } else {
+        // let value = if *stmt.value
+        //     != Expr::Literal(Literal {
+        //         uuid: _x,
+        //         value: Object::Nil,
+        //     }) {
+        //     self.evalulate(&stmt.value)?
+        // } else {
+        //     Object::Nil
+        // };
+        let value = if let Expr::Literal(Literal {
+            uuid: _x,
+            value: Object::Nil,
+        }) = *stmt.value
+        {
             Object::Nil
+        } else {
+            self.evalulate(&stmt.value)?
         };
         Err(RuntimeException::Return_(value))
     }

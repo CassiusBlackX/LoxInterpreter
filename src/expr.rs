@@ -8,10 +8,12 @@
 * primary -> NUMBER | STRING | BOOL | NIL | "(" expression ")" ;
 */
 
+use std::hash::Hash;
+
 use crate::object::Object;
 use crate::token::Token;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Literal(Literal),
     Variable(Variable),
@@ -25,27 +27,32 @@ pub enum Expr {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Literal {
+    pub uuid: usize,
     pub value: Object,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Variable {
+    pub uuid: usize,
     pub name: Token,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Grouping {
+    pub uuid: usize,
     pub expr: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Unary {
+    pub uuid: usize,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Binary {
+    pub uuid: usize,
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
@@ -53,12 +60,14 @@ pub struct Binary {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Assign {
-    pub target: Variable,
+    pub uuid: usize,
+    pub name: Token,
     pub value: Box<Expr>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Logical {
+    pub uuid: usize,
     pub left: Box<Expr>,
     pub op: Token,
     pub right: Box<Expr>,
@@ -66,6 +75,7 @@ pub struct Logical {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Call {
+    pub uuid: usize,
     pub callee: Box<Expr>,
     pub paren: Token,
     pub arguments: Vec<Expr>,
@@ -94,5 +104,33 @@ impl Expr {
             Expr::Logical(expr) => visitor.visit_logical(expr),
             Expr::Call(expr) => visitor.visit_call(expr),
         }
+    }
+
+    fn get_uuid(&self) -> usize {
+        match self {
+            Self::Literal(e) => e.uuid,
+            Self::Variable(e) => e.uuid,
+            Self::Grouping(e) => e.uuid,
+            Self::Unary(e) => e.uuid,
+            Self::Binary(e) => e.uuid,
+            Self::Assign(e) => e.uuid,
+            Self::Logical(e) => e.uuid,
+            Self::Call(e) => e.uuid,
+        }
+    }
+}
+
+impl PartialEq for Expr {
+    fn eq(&self, other: &Self) -> bool {
+        self.get_uuid() == other.get_uuid()
+    }
+}
+
+impl Eq for Expr {}
+
+impl Hash for Expr {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.get_uuid().hash(state);
+        // we may even directly return the uuid is enough
     }
 }

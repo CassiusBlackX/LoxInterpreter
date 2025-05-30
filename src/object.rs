@@ -3,7 +3,7 @@ use std::fmt;
 use crate::callable::Callables;
 use crate::interpreter::RuntimeError;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Object {
     Identifier(String),
     String_(String),
@@ -42,6 +42,34 @@ impl Object {
                 "Cannot cast {} into double!",
                 self.to_string()
             ))),
+        }
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        if std::mem::discriminant(self) != std::mem::discriminant(other) {
+            false
+        } else {
+            match (self, other) {
+                (Self::Identifier(ss), Self::Identifier(os)) => ss == os,
+                (Self::String_(ss), Self::String_(os)) => ss == os,
+                (Self::Bool(sb), Self::Bool(ob)) => sb == ob,
+                (Self::Nil, Self::Nil) => true,
+                (Self::Nil, _) => false,
+                (_, Self::Nil) => false,
+                (Self::Number(sx), Self::Number(ox)) => {
+                    if sx.is_nan() && ox.is_nan() {
+                        true
+                    } else if sx.is_nan() || ox.is_nan() {
+                        false
+                    } else {
+                        sx == ox
+                    }
+                }
+                (Self::Callables(sc), Self::Callables(oc)) => sc == oc,
+                (_, _) => false,
+            }
         }
     }
 }
