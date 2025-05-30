@@ -1,3 +1,5 @@
+use crate::interpreter::RuntimeError;
+
 pub fn handle_error(message: &str) {
     eprintln!("{}", message);
     std::process::exit(65);
@@ -8,11 +10,13 @@ pub fn report(line: usize, message: &str) {
     eprintln!("{}", err);
 }
 
+#[derive(Debug)]
 pub enum LoxError {
     ParseError(ParseError),
     RuntimeError(RuntimeError),
 }
-pub struct RuntimeError(pub String);
+
+#[derive(Debug)]
 pub struct ParseError(pub String);
 
 impl From<ParseError> for LoxError {

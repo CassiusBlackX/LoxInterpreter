@@ -1,6 +1,7 @@
 use std::fmt;
 
-use crate::error::RuntimeError;
+use crate::callable::Callables;
+use crate::interpreter::RuntimeError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Object {
@@ -9,6 +10,7 @@ pub enum Object {
     Bool(bool),
     Nil,
     Number(f64),
+    Callables(Callables),
 }
 
 impl fmt::Display for Object {
@@ -19,6 +21,7 @@ impl fmt::Display for Object {
             Self::Number(x) => write!(f, "{x}"),
             Self::Bool(flag) => write!(f, "{}", if *flag { "true" } else { "false" }),
             Self::Nil => write!(f, "Nil"),
+            Self::Callables(callable) => write!(f, "{callable}"),
         }
     }
 }

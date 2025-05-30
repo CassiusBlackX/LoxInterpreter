@@ -7,9 +7,12 @@ use crate::{
 };
 
 // program -> declaration* EOF ;
-// declaration -> varDecl | statement ;
+// declaration -> funDecl |varDecl | statement ;
+// funDecl -> "fun" function ;
+// function -> IDENTIFIER "(" parameters? ")" block ;
+// parameters -> IDENTIFIER ( "," IDENTIFIER )* ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block ;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | returnStmt | block ;
 // block -> "{" declaration* "}" ;
 // exprStmt -> expression ";" ;
 // printStmt -> "print" expression ";" ;
@@ -18,6 +21,7 @@ use crate::{
 // forStmt -> "for" "(" (varDecl | exprStmt | ";")
 //                      expression? ";"
 //                      expression? ")" statement ;
+// returnStmt -> "return" expression? ";" ;
 //
 // expression -> assignment ;
 // assignment -> IDENTIFIER "=" assignment | logic_or ;
@@ -27,7 +31,9 @@ use crate::{
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor ( ( "-" | "+" ) factor )* ;
 // factor -> unary ( ("/" | "*" ) unary )* ;
-// unary -> ("!" | "-" ) unary | primary;
+// unary -> ("!" | "-" ) unary | call ;
+// call -> primary ( "(" arguments? ")" )* ;
+// arguments -> expression ( "," expression )* ;
 // primary -> NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER ;
 
 pub struct Parser {
@@ -40,20 +46,90 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
+    // parse() will not exit immediately when got a ParseError
+    // when finish parsing, if encountered a ParseError brefore, return ParseError
+    // else return the parsed statements
     pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = Vec::new();
+        let mut had_error = false;
         while !self.at_end() {
-            statements.push(self.declaration()?);
+            let stmt = self.declaration();
+            if stmt == Stmt::Invalid {
+                had_error = true;
+            }
+            statements.push(stmt);
         }
-        Ok(statements)
+        if had_error {
+            Err(ParseError("Err when parsing!".to_string()))
+        } else {
+            Ok(statements)
+        }
     }
 
-    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+    // declaration() will only return Stmt instead of Result<Stmt, ParseError>
+    // so that even there were several ParseErrors, parser will go on
+    // until all tokens are parsed.
+    // NOTE: must handle the returning `Stmt` of declaration in case it is Stmt::Invalid
+    fn declaration(&mut self) -> Stmt {
+        let result;
         if self.token_match(&[TokenType::Var]) {
-            self.var_declaration()
+            result = self.var_declaration();
+        } else if self.token_match(&[TokenType::Fun]) {
+            result = self.function("function");
+        } else if self.token_match(&[TokenType::Return]) {
+            result = self.return_statement();
         } else {
-            self.statement()
+            result = self.statement();
         }
+        result
+            .inspect_err(|_| self.synchronize())
+            .unwrap_or(Stmt::Invalid)
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+        let keyword = self.previous();
+        let value = if !self.check(TokenType::SemiColon) {
+            self.expression()?
+        } else {
+            Expr::Literal(Literal { value: Object::Nil })
+        };
+        let _ = self.consume(TokenType::SemiColon, "Expect ';' after return value")?;
+        Ok(Stmt::ReturnStmt(ReturnStmt {
+            keyword,
+            value: Box::new(value),
+        }))
+    }
+
+    fn function(&mut self, kind: &str) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::Identifier, &format!("Expect {kind} name."))?;
+        let _ = self.consume(
+            TokenType::LeftParen,
+            &format!("Expect '(' after {kind} name"),
+        )?;
+        let mut parameters = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    self.error(self.peek(), "Can't have more than 255 parameters");
+                }
+                parameters.push(self.consume(TokenType::Identifier, "Expect parameter name")?);
+                if !self.token_match(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after parameters")?;
+
+        let _ = self.consume(
+            TokenType::LeftBrace,
+            &format!("Expect '{{' before {kind} body"),
+        )?;
+        let body = self.block()?;
+        Ok(Stmt::Function(FunctionStmt {
+            name,
+            params: parameters,
+            body,
+        }))
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
@@ -100,8 +176,15 @@ impl Parser {
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut statements = Vec::new();
-        while !self.check(&TokenType::RightBrace) && !self.at_end() {
-            statements.push(self.declaration()?);
+        while !self.check(TokenType::RightBrace) && !self.at_end() {
+            // blocl() use declaration(), so declaration should not
+            // cause block() exit as soon as an Err occur
+            let stmt = self.declaration();
+            if stmt == Stmt::Invalid {
+                self.error(self.peek(), "Error when parsing block statement!");
+            } else {
+                statements.push(stmt);
+            }
         }
         let _ = self.consume(TokenType::RightBrace, "Expect '}' after block");
         Ok(statements)
@@ -146,7 +229,7 @@ impl Parser {
             Some(self.expression_statement()?)
         };
 
-        let condition = if !self.check(&TokenType::SemiColon) {
+        let condition = if !self.check(TokenType::SemiColon) {
             self.expression()?
         } else {
             Expr::Literal(Literal {
@@ -155,7 +238,7 @@ impl Parser {
         };
         let _ = self.consume(TokenType::SemiColon, "Expect ';' after loop condition")?;
 
-        let increment = if !self.check(&TokenType::RightParen) {
+        let increment = if !self.check(TokenType::RightParen) {
             Some(self.expression()?)
         } else {
             None
@@ -323,7 +406,40 @@ impl Parser {
                 right: Box::new(right),
             }));
         }
-        self.primary()
+        self.call()
+    }
+
+    fn call(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.primary();
+        loop {
+            if self.token_match(&[TokenType::LeftParen]) {
+                expr = self.finish_call(expr?);
+            } else {
+                break;
+            }
+        }
+        expr
+    }
+
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
+        let mut arguments = Vec::new();
+        if !self.check(TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    self.error(self.peek(), "Can't have more than 255 arguments");
+                }
+                arguments.push(self.expression()?);
+                if !self.token_match(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        let paren = self.consume(TokenType::RightParen, "Expect ')' after arguments")?;
+        Ok(Expr::Call(Call {
+            callee: Box::new(callee),
+            paren,
+            arguments,
+        }))
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
@@ -352,7 +468,7 @@ impl Parser {
                 expr: Box::new(expr?),
             }))
         } else {
-            token_error(self.peek(), "expected expression");
+            self.error(self.peek(), "expected expression");
             Err(ParseError("expected expression".to_string()))
         }
     }
@@ -361,21 +477,18 @@ impl Parser {
     // any of the element in the given slice matches, will return true
     // only when no match in the given slice will return false
     fn token_match(&mut self, token_types: &[TokenType]) -> bool {
-        for token_type in token_types {
-            if self.check(token_type) {
+        token_types.iter().copied().any(|tt| {
+            if self.check(tt) {
                 self.advance();
-                return true;
+                true
+            } else {
+                false
             }
-        }
-        false
+        })
     }
 
-    fn check(&self, token_type: &TokenType) -> bool {
-        if self.at_end() {
-            false
-        } else {
-            self.peek().get_type() == *token_type
-        }
+    fn check(&self, token_type: TokenType) -> bool {
+        !self.at_end() && self.peek().get_type() == token_type
     }
 
     fn advance(&mut self) {
@@ -398,7 +511,7 @@ impl Parser {
     }
 
     fn consume(&mut self, token_type: TokenType, messaage: &str) -> Result<Token, ParseError> {
-        if !self.check(&token_type) {
+        if !self.check(token_type) {
             self.error(&self.previous(), messaage);
             return Err(ParseError(messaage.to_string()));
         }
@@ -432,13 +545,13 @@ impl Parser {
     }
 }
 
-pub fn token_error(token: &Token, message: &str) {
+fn token_error(token: &Token, message: &str) {
     if token.get_type() == TokenType::Eof {
-        report(token.get_line(), &("at end ".to_owned() + message));
+        report(token.get_line(), &("at end ".to_string() + message));
     } else {
         report(
             token.get_line(),
-            &("at '".to_owned() + token.get_lexeme() + "'. " + message),
+            &("at '".to_string() + token.get_lexeme() + "'. " + message),
         );
     }
 }

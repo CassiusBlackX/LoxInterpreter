@@ -1,1 +1,7 @@
-for (var i = 0; i < 9; i = i + 1) {}
+fun func(a, b){
+  var c=a+b;
+  return c;
+}
+var a = 5;
+var b = 8;
+print func(a, b);

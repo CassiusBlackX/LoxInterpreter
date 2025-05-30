@@ -1,3 +1,4 @@
+mod callable;
 mod environment;
 mod error;
 mod expr;
@@ -10,7 +11,8 @@ mod token;
 
 use std::io::{self, Read, Write};
 
-use error::LoxError;
+pub use error::LoxError;
+pub use interpreter::RuntimeError;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
@@ -38,6 +40,7 @@ pub fn run_file(path: String) -> Result<(), LoxError> {
 }
 
 pub fn run_prompt() -> Result<(), LoxError> {
+    println!("no file passed in, please input below");
     let stdin = io::stdin();
 
     loop {

@@ -11,6 +11,7 @@
 use crate::object::Object;
 use crate::token::Token;
 
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Literal(Literal),
     Variable(Variable),
@@ -19,40 +20,55 @@ pub enum Expr {
     Binary(Binary),
     Assign(Assign),
     Logical(Logical),
+    Call(Call),
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Literal {
     pub value: Object,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Variable {
     pub name: Token,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Grouping {
     pub expr: Box<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Unary {
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Binary {
     pub left: Box<Expr>,
     pub operator: Token,
     pub right: Box<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Assign {
     pub target: Variable,
     pub value: Box<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Logical {
     pub left: Box<Expr>,
     pub op: Token,
     pub right: Box<Expr>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Call {
+    pub callee: Box<Expr>,
+    pub paren: Token,
+    pub arguments: Vec<Expr>,
 }
 
 pub trait ExprVisitor<T> {
@@ -63,6 +79,7 @@ pub trait ExprVisitor<T> {
     fn visit_binary(&mut self, expr: &Binary) -> T;
     fn visit_assign(&mut self, expr: &Assign) -> T;
     fn visit_logical(&mut self, expr: &Logical) -> T;
+    fn visit_call(&mut self, expr: &Call) -> T;
 }
 
 impl Expr {
@@ -75,6 +92,7 @@ impl Expr {
             Expr::Binary(expr) => visitor.visit_binary(expr),
             Expr::Assign(expr) => visitor.visit_assign(expr),
             Expr::Logical(expr) => visitor.visit_logical(expr),
+            Expr::Call(expr) => visitor.visit_call(expr),
         }
     }
 }

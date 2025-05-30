@@ -76,7 +76,7 @@ pub fn match_keywords(word: &str) -> Option<TokenType> {
     KEYWORDS.get(word).copied()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     type_: TokenType,
     lexeme: String,
