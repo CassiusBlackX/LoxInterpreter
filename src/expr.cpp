@@ -1,5 +1,7 @@
 #include "expr.h"
 #include "error.h"
+#include "interpreter.h"
+#include "object.h"
 #include <cassert>
 #include <initializer_list>
 #include <sstream>
@@ -60,18 +62,19 @@ std::string Call::print() const {
   return "Call " + func_name;
 }
 
-Object Literal::evaluate(Environment *environment) { return value; }
+Object Literal::evaluate(Interpreter *interpreter) { return value; }
 
-Object Variable::evaluate(Environment *environment) {
-  return environment->get(name);
+Object Variable::evaluate(Interpreter *interpreter) {
+  return interpreter->get_current()->get(name);
 }
 
-Object Grouping::evaluate(Environment *environment) {
-  return expr->evaluate(environment);
+Object Grouping::evaluate(Interpreter *interpreter) {
+  // return expr->evaluate(environment);
+  return expr->evaluate(interpreter);
 }
 
-Object Unary::evaluate(Environment *environment) {
-  Object right_value = right->evaluate(environment);
+Object Unary::evaluate(Interpreter *interpreter) {
+  Object right_value = right->evaluate(interpreter);
   switch (op.get_tokentype()) {
   case TokenType::Minus: {
     check_number_operand(op, right_value);
@@ -87,9 +90,9 @@ Object Unary::evaluate(Environment *environment) {
   }
 }
 
-Object Binary::evaluate(Environment *environment) {
-  Object left_value = left->evaluate(environment);
-  Object right_value = right->evaluate(environment);
+Object Binary::evaluate(Interpreter *interpreter) {
+  Object left_value = left->evaluate(interpreter);
+  Object right_value = right->evaluate(interpreter);
 
   switch (op.get_tokentype()) {
   case TokenType::Minus:
@@ -144,14 +147,14 @@ Object Binary::evaluate(Environment *environment) {
   }
 }
 
-Object Assign::evaluate(Environment *environment) {
-  Object value_ = value->evaluate(environment);
-  environment->assign(target->name, value_);
+Object Assign::evaluate(Interpreter *interpreter) {
+  Object value_ = value->evaluate(interpreter);
+  interpreter->get_current()->assign(target->name, value_);
   return value;
 }
 
-Object Logical::evaluate(Environment *environment) {
-  Object left_vale = left->evaluate(environment);
+Object Logical::evaluate(Interpreter *interpreter) {
+  Object left_vale = left->evaluate(interpreter);
   // 'and', 'or' are short-circuit
   if (op.get_tokentype() == TokenType::Or) {
     if (static_cast<bool>(left_vale))
@@ -161,29 +164,30 @@ Object Logical::evaluate(Environment *environment) {
       return static_cast<bool>(left_vale);
   }
 
-  return static_cast<bool>(right->evaluate(environment));
+  return static_cast<bool>(right->evaluate(interpreter));
 }
 
-Object Call::evaluate(Environment *environment) {
-  Object callee_value = callee->evaluate(environment);
-  std::vector<Object> arguments_value;
-  arguments_value.reserve(arguments.size());
-  for (Expr *arg : arguments) {
-    arguments_value.push_back(arg->evaluate(environment));
-  }
-
-  if (auto callable = dynamic_cast<Callable *>(callee)) {
-    if (arguments_value.size() == callable->arity()) {
-      return callable->call(environment, arguments_value);
-    } else {
-      std::ostringstream oss;
-      oss << "Expected " << callable->arity() << " arguments, but got "
-          << arguments_value.size() << ".";
-      throw RuntimeError(paren, oss.str());
-    }
-  } else {
-    throw RuntimeError(paren, "can only call functions and classes.");
-  }
+Object Call::evaluate(Interpreter *interpreter) {
+  return Object();
+  // Object callee_value = callee->evaluate(interpreter);
+  // std::vector<Object> arguments_value;
+  // arguments_value.reserve(arguments.size());
+  // for (Expr *arg : arguments) {
+  //   arguments_value.push_back(arg->evaluate(interpreter));
+  // }
+  //
+  // if (auto callable = dynamic_cast<Callable *>(callee)) {
+  //   if (arguments_value.size() == callable->arity()) {
+  //     return callable->call(environment, arguments_value);
+  //   } else {
+  //     std::ostringstream oss;
+  //     oss << "Expected " << callable->arity() << " arguments, but got "
+  //         << arguments_value.size() << ".";
+  //     throw RuntimeError(paren, oss.str());
+  //   }
+  // } else {
+  //   throw RuntimeError(paren, "can only call functions and classes.");
+  // }
 }
 
 void delete_expr(Expr *expr) {

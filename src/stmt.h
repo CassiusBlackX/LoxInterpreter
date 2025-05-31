@@ -1,7 +1,6 @@
 #ifndef STMT_H_
 #define STMT_H_
 
-#include "environment.h"
 #include "expr.h"
 #include <vector>
 
@@ -20,7 +19,7 @@
 
 struct Stmt {
   virtual ~Stmt() = default;
-  virtual void execute(Environment *environment) = 0;
+  virtual void execute(Interpreter* interpreter) = 0;
 };
 
 struct VarDecl : public Stmt {
@@ -28,21 +27,21 @@ struct VarDecl : public Stmt {
   Expr *initializer;
 
   VarDecl(const Token &token, Expr *expr) : name(token), initializer(expr) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 struct ExprStmt : public Stmt {
   Expr *expr;
 
   ExprStmt(Expr *expr) : expr(expr) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 struct PrintStmt : public Stmt {
   Expr *expr;
 
   PrintStmt(Expr *expr) : expr(expr) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 struct Block : public Stmt {
@@ -50,7 +49,7 @@ struct Block : public Stmt {
 
   Block(const std::vector<Stmt *> &statements)
       : statements(std::move(statements)) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 struct IfStmt : public Stmt {
@@ -60,7 +59,7 @@ struct IfStmt : public Stmt {
 
   IfStmt(Expr *cond, Stmt *then, Stmt *else_)
       : condition(cond), then_branch(then), else_branch(else_) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 struct WhileStmt : public Stmt {
@@ -68,7 +67,7 @@ struct WhileStmt : public Stmt {
   Stmt *body;
 
   WhileStmt(Expr *cond, Stmt *body) : condition(cond), body(body) {}
-  void execute(Environment *environment) override;
+  void execute(Interpreter* interpreter) override;
 };
 
 void delete_stmt(Stmt *stmt);

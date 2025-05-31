@@ -1,29 +1,18 @@
 #ifndef EXPR_H_
 #define EXPR_H_
 
+#include <cstddef>
 #include <vector>
 
 #include "callable.h"
-#include "environment.h"
 #include "token.h"
 
-
-// expression -> assignment;
-// assignment -> IDENTIFIER "=" assignment | | logic_or ;
-// logic_or -> logic_and ( "or" logic_and )* ;
-// logic_and ->  equality ( "and" equality )* ;
-// equality -> comparison ( ( "!=" | "==" ) comparison )* ;
-// comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-// term -> factor  ( ( "-" | "+" ) factor )* ;
-// unary -> ("!" | "-" ) unary | call;
-// call -> primary ( "(" arguments? ")" )* ;
-// arguments -> expression ( "," expression )* ;
-// primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER;
+class Interpreter;
 
 struct Expr {
   virtual ~Expr() = default;
   virtual std::string print() const = 0;
-  virtual Object evaluate(Environment *environment) = 0;
+  virtual Object evaluate(Interpreter *interpreter) = 0;
 };
 
 struct Literal : public Expr {
@@ -31,7 +20,7 @@ struct Literal : public Expr {
 
   Literal(Object value) : value(value) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Variable : public Expr {
@@ -39,7 +28,7 @@ struct Variable : public Expr {
 
   Variable(const Token &token) : name(token) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Grouping : public Expr {
@@ -47,7 +36,7 @@ struct Grouping : public Expr {
 
   Grouping(Expr *expr) : expr(expr) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Unary : public Expr {
@@ -56,7 +45,7 @@ struct Unary : public Expr {
 
   Unary(Token op, Expr *right) : op(op), right(right) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Binary : public Expr {
@@ -67,7 +56,7 @@ struct Binary : public Expr {
   Binary(Expr *left, Token op, Expr *right)
       : left(left), op(op), right(right) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Assign : public Expr {
@@ -76,7 +65,7 @@ struct Assign : public Expr {
 
   Assign(Variable *target, Expr *value) : target(target), value(value) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Logical : public Expr {
@@ -87,7 +76,7 @@ struct Logical : public Expr {
   Logical(Expr *left, const Token &token, Expr *right)
       : left(left), op(token), right(right) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
 };
 
 struct Call : public Expr, public Callable {
@@ -98,9 +87,10 @@ struct Call : public Expr, public Callable {
   Call(Expr *callee, const Token &paren, const std::vector<Expr *> &args)
       : callee(callee), paren(paren), arguments(std::move(args)) {}
   std::string print() const override;
-  Object evaluate(Environment *environment) override;
+  Object evaluate(Interpreter *interpreter) override;
   Object call(Environment *environment,
               const std::vector<Object> &arguments) override;
+  size_t arity() const override { return 0; }
 };
 
 void delete_expr(Expr *expr);

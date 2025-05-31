@@ -1,71 +1,60 @@
 #include "stmt.h"
 #include "error.h"
+#include "interpreter.h"
 #include <iostream>
 #include <vector>
 
-// program -> declaration* EOF ;
-// declaration -> varDecl | statement ;
-// varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
-// block -> "{" declaration* "}" ;
-// exprStmt -> expression ";" ;
-// printStmt -> "print" expression ";" ;
-// ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
-// whileStmt -> "while" "(" expression ")" statement ;
-// forStmt -> "for" "(" ( varDecl | exprStmt | ";")
-//             expression? ";"
-//             expression? ")" statement ;
-
-void ExprStmt::execute(Environment *_environment) {
-  expr->evaluate(_environment);
+void ExprStmt::execute(Interpreter *interpreter) {
+  expr->evaluate(interpreter);
 }
 
-void PrintStmt::execute(Environment *_environment) {
-  Object value = expr->evaluate(_environment);
+void PrintStmt::execute(Interpreter *interpreter) {
+  Object value = expr->evaluate(interpreter);
   std::cout << value << std::endl;
 }
 
-void VarDecl::execute(Environment *environment) {
+void VarDecl::execute(Interpreter *interpreter) {
   Object value = Object(); // if the value does not have an
                            // initializer, its value will be null
   if (initializer != nullptr) {
-    value = initializer->evaluate(environment);
+    value = initializer->evaluate(interpreter);
   }
 
-  environment->define(name.get_lexeme(), value);
+  interpreter->get_current()->define(name.get_lexeme(), value);
 }
 
+// TODO: unfixed here
 static void execute_block(const std::vector<Stmt *> &statements,
-                          Environment *environment) {
+                          Interpreter *interpreter) {
   try {
     for (Stmt *statement : statements) {
-      statement->execute(environment);
+      statement->execute(interpreter);
     }
   } catch (const RuntimeError &e) {
     std::cerr << e.what() << std::endl;
   }
 }
 
-void Block::execute(Environment *environment) {
-  Environment block_environment = Environment(environment);
-  execute_block(statements, &block_environment);
+void Block::execute(Interpreter *interpreter) {
+  // Environment block_environment = Environment(environment);
+  execute_block(statements, interpreter);
 }
 
-void IfStmt::execute(Environment *environment) {
-  Object cond_bool = condition->evaluate(environment);
+void IfStmt::execute(Interpreter *interpreter) {
+  Object cond_bool = condition->evaluate(interpreter);
   // using bool() cast to check if cond is true or false
   if (static_cast<bool>(cond_bool)) {
-    then_branch->execute(environment);
+    then_branch->execute(interpreter);
   } else if (else_branch != nullptr) {
     // only when condition == false && got an 'else' statement, will we execute
     // else statement avoid dangling pointer!
-    else_branch->execute(environment);
+    else_branch->execute(interpreter);
   }
 }
 
-void WhileStmt::execute(Environment *environment) {
-  while (static_cast<bool>(condition->evaluate(environment))) {
-    body->execute(environment);
+void WhileStmt::execute(Interpreter *interpreter) {
+  while (static_cast<bool>(condition->evaluate(interpreter))) {
+    body->execute(interpreter);
   }
 }
 

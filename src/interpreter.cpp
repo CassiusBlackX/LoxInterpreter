@@ -2,7 +2,6 @@
 #include "callable.h"
 #include "error.h"
 #include "expr.h"
-#include "token.h"
 
 #include <chrono>
 #include <cstddef>
@@ -21,13 +20,13 @@ struct ClockCallable : public Callable {
 };
 
 Interpreter::Interpreter() {
-  globals.define(const std::string &name, const LiteralType &value)
+  // globals.define(const std::string &name, const LiteralType &value)
 }
 
 void Interpreter::interpret(const std::vector<Stmt *> statements) {
   try {
     for (Stmt *statement : statements) {
-      statement->execute(&environment);
+      statement->execute(this);
     }
   } catch (const RuntimeError &e) {
     handle_runtime_error(e);

@@ -1,6 +1,5 @@
 #include "parser.h"
 #include "error.h"
-#include <iostream>
 #include <string>
 
 // program -> declaration* EOF ;
@@ -183,7 +182,7 @@ Expr *Parser::assignment() {
     if (auto var = dynamic_cast<Variable *>(expr)) {
       return new Assign(var, value);
     }
-    delete_expr(value);
+    // delete_expr(value);
     error(equal, "Invalid assignment target");
   }
   return expr;
