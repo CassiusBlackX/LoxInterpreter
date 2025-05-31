@@ -4,10 +4,8 @@
 #include "object.h"
 #include <cassert>
 #include <initializer_list>
-#include <sstream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 static std::string parenthesize(const std::string_view name,
                                 std::initializer_list<Expr *> exprs) {
@@ -188,6 +186,10 @@ Object Call::evaluate(Interpreter *interpreter) {
   // } else {
   //   throw RuntimeError(paren, "can only call functions and classes.");
   // }
+}
+
+Object Call::call(Interpreter* interpreter, const std::vector<Object>& arguments) {
+  return Object();
 }
 
 void delete_expr(Expr *expr) {

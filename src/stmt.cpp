@@ -1,4 +1,5 @@
 #include "stmt.h"
+#include "environment.h"
 #include "error.h"
 #include "interpreter.h"
 #include <iostream>
@@ -25,19 +26,22 @@ void VarDecl::execute(Interpreter *interpreter) {
 
 // TODO: unfixed here
 static void execute_block(const std::vector<Stmt *> &statements,
-                          Interpreter *interpreter) {
+                          Environment *env, Interpreter *interpreter) {
+  Environment *previous = interpreter->get_current();
   try {
+    *interpreter->set_current() = env;
     for (Stmt *statement : statements) {
       statement->execute(interpreter);
     }
-  } catch (const RuntimeError &e) {
-    std::cerr << e.what() << std::endl;
+  } catch (RuntimeError e) {
+    *interpreter->set_current() = previous;
   }
+  *interpreter->set_current() = previous;
 }
 
 void Block::execute(Interpreter *interpreter) {
-  // Environment block_environment = Environment(environment);
-  execute_block(statements, interpreter);
+  Environment block_environment = Environment(interpreter->get_current());
+  execute_block(statements, &block_environment, interpreter);
 }
 
 void IfStmt::execute(Interpreter *interpreter) {

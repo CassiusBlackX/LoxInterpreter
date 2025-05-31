@@ -87,8 +87,9 @@ struct Call : public Expr, public Callable {
   Call(Expr *callee, const Token &paren, const std::vector<Expr *> &args)
       : callee(callee), paren(paren), arguments(std::move(args)) {}
   std::string print() const override;
+  std::string to_string() const override { return print(); }
   Object evaluate(Interpreter *interpreter) override;
-  Object call(Environment *environment,
+  Object call(Interpreter* interpreter,
               const std::vector<Object> &arguments) override;
   size_t arity() const override { return 0; }
 };

@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include "callable.h"
+#include "environment.h"
 #include "error.h"
 #include "expr.h"
 
@@ -8,7 +9,7 @@
 #include <vector>
 
 struct ClockCallable : public Callable {
-  Object call(Environment *env, const std::vector<Object> &args) override {
+  Object call(Interpreter* interpreter, const std::vector<Object> &args) override {
     auto now = std::chrono::system_clock::now();
     auto duration = now.time_since_epoch();
     auto millis =
@@ -21,6 +22,7 @@ struct ClockCallable : public Callable {
 
 Interpreter::Interpreter() {
   // globals.define(const std::string &name, const LiteralType &value)
+  environment = globals = new Environment();
 }
 
 void Interpreter::interpret(const std::vector<Stmt *> statements) {
@@ -31,4 +33,20 @@ void Interpreter::interpret(const std::vector<Stmt *> statements) {
   } catch (const RuntimeError &e) {
     handle_runtime_error(e);
   }
+}
+
+Environment* Interpreter::get_current() {
+  return environment;
+}
+
+Environment* Interpreter::get_global() {
+  return globals;
+}
+
+Environment** Interpreter::set_current() {
+  return &environment;
+}
+
+Environment** Interpreter::set_global() {
+  return &globals;
 }

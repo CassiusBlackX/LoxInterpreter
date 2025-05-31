@@ -15,10 +15,12 @@ public:
   void exit_scope();
   Environment* get_current();
   Environment* get_global();
+  Environment** set_current();
+  Environment** set_global();
 
 private:
-  Environment environment;
-  Environment globals;
+  Environment *environment;
+  Environment *globals;
 };
 
 #endif // INTERPRETER_H_
