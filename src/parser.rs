@@ -1,4 +1,5 @@
 use crate::{
+    callable::Function,
     error::{ParseError, token_error},
     expr::*,
     object::Object,
@@ -13,7 +14,8 @@ fn gen_uuid() -> usize {
 }
 
 // program -> declaration* EOF ;
-// declaration -> funDecl |varDecl | statement ;
+// declaration -> classDecl | funDecl |varDecl | statement ;
+// classDecl -> "class" IDENTIFIER ("<" IDENTIFIER )? "{" function* "}" ;
 // funDecl -> "fun" function ;
 // function -> IDENTIFIER "(" parameters? ")" block ;
 // parameters -> IDENTIFIER ( "," IDENTIFIER )* ;
@@ -30,7 +32,7 @@ fn gen_uuid() -> usize {
 // returnStmt -> "return" expression? ";" ;
 //
 // expression -> assignment ;
-// assignment -> IDENTIFIER "=" assignment | logic_or ;
+// assignment -> ( call ".")? IDENTIFIER "=" assignment | logic_or ;
 // logic_or -> logic_and ( "or" | logic_and )* ;
 // logic_and -> equality ( "and" equality )* ;
 // equality -> comparison ( ( "!=" | "==") comparison )* ;
@@ -38,9 +40,9 @@ fn gen_uuid() -> usize {
 // term -> factor ( ( "-" | "+" ) factor )* ;
 // factor -> unary ( ("/" | "*" ) unary )* ;
 // unary -> ("!" | "-" ) unary | call ;
-// call -> primary ( "(" arguments? ")" )* ;
+// call -> primary ( "(" arguments? ")"  | "." IDENTIFIER )* ;
 // arguments -> expression ( "," expression )* ;
-// primary -> NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER ;
+// primary -> NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER | "super" "." IDENTIFIER ;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -84,12 +86,39 @@ impl Parser {
             result = self.function("function");
         } else if self.token_match(&[TokenType::Return]) {
             result = self.return_statement();
+        } else if self.token_match(&[TokenType::Class]) {
+            result = self.class_statement();
         } else {
             result = self.statement();
         }
         result
             .inspect_err(|_| self.synchronize())
             .unwrap_or(Stmt::Invalid)
+    }
+
+    fn class_statement(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::Identifier, "Expect class name")?;
+        let super_class = if self.token_match(&[TokenType::Less]) {
+            let _ = self.consume(TokenType::Identifier, "Expect superclass name")?;
+            Some(Box::new(Expr::Variable(Variable {
+                uuid: gen_uuid(),
+                name: self.previous(),
+            })))
+        } else {
+            None
+        };
+        let _ = self.consume(TokenType::LeftBrace, "Expect '{' before class body")?;
+
+        let mut methods = Vec::new();
+        while !self.check(TokenType::RightBrace) && !self.at_end() {
+            methods.push(self.function("method")?);
+        }
+        let _ = self.consume(TokenType::RightBrace, "Expect '}}' after class body")?;
+        Ok(Stmt::Class(ClassStmt {
+            name,
+            methods,
+            super_class,
+        }))
     }
 
     fn return_statement(&mut self) -> Result<Stmt, ParseError> {
@@ -103,7 +132,7 @@ impl Parser {
             })
         };
         let _ = self.consume(TokenType::SemiColon, "Expect ';' after return value")?;
-        Ok(Stmt::ReturnStmt(ReturnStmt {
+        Ok(Stmt::Return(ReturnStmt {
             keyword,
             value: Box::new(value),
         }))
@@ -181,7 +210,7 @@ impl Parser {
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let value = self.expression()?;
         let _ = self.consume(TokenType::SemiColon, "Expect ';' after value")?;
-        Ok(Stmt::PrintStmt(PrintStmt {
+        Ok(Stmt::Print(PrintStmt {
             expr: Box::new(value),
         }))
     }
@@ -212,7 +241,7 @@ impl Parser {
         } else {
             None
         };
-        Ok(Stmt::IfStmt(IfStmt {
+        Ok(Stmt::If(IfStmt {
             condition: Box::new(condition),
             then_branch: Box::new(then_branch),
             else_branch,
@@ -224,7 +253,7 @@ impl Parser {
         let condition = self.expression()?;
         let _ = self.consume(TokenType::RightParen, "Expect ')' after while condition")?;
         let body = self.statement()?;
-        Ok(Stmt::WhileStmt(WhileStmt {
+        Ok(Stmt::While(WhileStmt {
             condition: Box::new(condition),
             body: Box::new(body),
         }))
@@ -264,13 +293,13 @@ impl Parser {
             body = Stmt::Block(BlockStmt {
                 statements: vec![
                     body,
-                    Stmt::ExprStmt(ExprStmt {
+                    Stmt::Expr(ExprStmt {
                         expr: Box::new(inc),
                     }),
                 ],
             });
         }
-        body = Stmt::WhileStmt(WhileStmt {
+        body = Stmt::While(WhileStmt {
             condition: Box::new(condition),
             body: Box::new(body),
         });
@@ -286,7 +315,7 @@ impl Parser {
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
         let _ = self.consume(TokenType::SemiColon, "Expect ';' after value")?;
-        Ok(Stmt::ExprStmt(ExprStmt {
+        Ok(Stmt::Expr(ExprStmt {
             expr: Box::new(expr),
         }))
     }
@@ -308,6 +337,14 @@ impl Parser {
                         return Ok(Expr::Assign(Assign {
                             uuid: gen_uuid(),
                             name: var.name,
+                            value: Box::new(value),
+                        }));
+                    }
+                    Expr::Get(get) => {
+                        return Ok(Expr::Set(Set {
+                            uuid: gen_uuid(),
+                            object: get.object,
+                            name: get.name,
                             value: Box::new(value),
                         }));
                     }
@@ -435,6 +472,13 @@ impl Parser {
         loop {
             if self.token_match(&[TokenType::LeftParen]) {
                 expr = self.finish_call(expr?);
+            } else if self.token_match(&[TokenType::Dot]) {
+                let name = self.consume(TokenType::Identifier, "Expect property name after '.'")?;
+                expr = Ok(Expr::Get(Get {
+                    uuid: gen_uuid(),
+                    object: Box::new(expr?),
+                    name,
+                }))
             } else {
                 break;
             }
@@ -496,6 +540,20 @@ impl Parser {
             Ok(Expr::Grouping(Grouping {
                 uuid: gen_uuid(),
                 expr: Box::new(expr?),
+            }))
+        } else if self.token_match(&[TokenType::This]) {
+            Ok(Expr::This(This {
+                uuid: gen_uuid(),
+                keyword: self.previous(),
+            }))
+        } else if self.token_match(&[TokenType::Super]) {
+            let keyword = self.previous();
+            let _ = self.consume(TokenType::Dot, "Expect '.' after 'super")?;
+            let method = self.consume(TokenType::Identifier, "Expect superclass method name")?;
+            Ok(Expr::Super(Super {
+                uuid: gen_uuid(),
+                keyword,
+                method,
             }))
         } else {
             self.error(self.peek(), "expected expression");

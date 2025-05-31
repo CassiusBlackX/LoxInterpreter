@@ -1,12 +1,26 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::callable::FunctionType;
 use crate::error::token_error;
 use crate::expr::*;
 use crate::interpreter::Interpreter;
 use crate::object::Object;
 use crate::stmt::*;
 use crate::token::Token;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum FunctionType {
+    None,
+    Function,
+    Method,
+    Initializer,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+enum ClassType {
+    None,
+    Class,
+    SubClass,
+}
 
 #[derive(Debug)]
 pub struct ResolveError(pub String);
@@ -15,6 +29,7 @@ pub struct Resolver<'a> {
     scopes: VecDeque<HashMap<String, bool>>,
     interpreter: &'a mut Interpreter,
     current_function: FunctionType,
+    current_class: ClassType,
 }
 
 impl<'a> Resolver<'a> {
@@ -23,6 +38,7 @@ impl<'a> Resolver<'a> {
             scopes: VecDeque::new(),
             interpreter,
             current_function: FunctionType::None,
+            current_class: ClassType::None,
         }
     }
 
@@ -158,6 +174,46 @@ impl ExprVisitor<Result<(), ResolveError>> for Resolver<'_> {
         }
         Ok(())
     }
+
+    fn visit_get(&mut self, expr: &Get) -> Result<(), ResolveError> {
+        self.resolve_expr(&expr.object)
+    }
+
+    fn visit_set(&mut self, expr: &Set) -> Result<(), ResolveError> {
+        self.resolve_expr(&expr.value)?;
+        self.resolve_expr(&expr.object)
+    }
+
+    fn visit_this(&mut self, expr: &This) -> Result<(), ResolveError> {
+        if self.current_class == ClassType::None {
+            Err(ResolveError(
+                "Can't use 'this' outside of a class".to_string(),
+            ))
+        } else {
+            self.resolve_local(&Expr::This(expr.to_owned()), &expr.keyword)
+        }
+    }
+
+    fn visit_super(&mut self, expr: &Super) -> Result<(), ResolveError> {
+        match self.current_class {
+            ClassType::None => {
+                token_error(&expr.keyword, "Can't use 'super' outside of a class");
+                Err(ResolveError(
+                    "Can't use 'super' outside of a class".to_string(),
+                ))
+            }
+            ClassType::Class => {
+                token_error(
+                    &expr.keyword,
+                    "Can't use 'super' in a class with no superclass",
+                );
+                Err(ResolveError(
+                    "Can't use 'super' in class with no superclass".to_string(),
+                ))
+            }
+            ClassType::SubClass => self.resolve_local(&Expr::Super(expr.to_owned()), &expr.keyword),
+        }
+    }
 }
 
 impl StmtVisitor<Result<(), ResolveError>> for Resolver<'_> {
@@ -214,6 +270,10 @@ impl StmtVisitor<Result<(), ResolveError>> for Resolver<'_> {
             token_error(&stmt.keyword, "Can't return from top-level code");
             return Err(ResolveError("Can't return from top-level code".to_string()));
         }
+        if self.current_function == FunctionType::Initializer {
+            token_error(&stmt.keyword, "Can't return from an initializer");
+            return Err(ResolveError("Can't return from an initializer".to_string()));
+        }
         if let Expr::Literal(Literal {
             uuid: _x,
             value: Object::Nil,
@@ -221,6 +281,57 @@ impl StmtVisitor<Result<(), ResolveError>> for Resolver<'_> {
         {
             self.resolve_expr(&stmt.value)?;
         }
+        Ok(())
+    }
+
+    fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Result<(), ResolveError> {
+        let enclosing_class = self.current_class;
+        self.current_class = ClassType::Class;
+
+        self.declare(&stmt.name)?;
+        self.define(&stmt.name);
+
+        if let Some(super_class) = &stmt.super_class {
+            if let Expr::Variable(Variable { uuid: _x, name: s }) = &**super_class {
+                if s.get_lexeme() == stmt.name.get_lexeme() {
+                    token_error(s, "A class can't inherit from itself");
+                    return Err(ResolveError(
+                        "A class can't inherit from itself".to_string(),
+                    ));
+                }
+            }
+            self.current_class = ClassType::SubClass;
+            self.resolve_expr(super_class)?;
+
+            self.begin_scope();
+            self.scopes
+                .back_mut()
+                .unwrap()
+                .insert("super".to_string(), true);
+        }
+
+        self.begin_scope();
+        self.scopes
+            .back_mut()
+            .unwrap()
+            .insert("this".to_string(), true);
+        for method in &stmt.methods {
+            if let Stmt::Function(meth) = method {
+                let mut func_type = FunctionType::Method;
+                if meth.name.get_lexeme() == "init" {
+                    func_type = FunctionType::Initializer;
+                }
+                self.resolve_fucntion(meth, func_type)?;
+            } else {
+                unreachable!()
+                // return Err(ResolveError("Not a Class method!".to_string()));
+            }
+        }
+        self.end_scope();
+        if stmt.super_class.is_some() {
+            self.end_scope();
+        }
+        self.current_class = enclosing_class;
         Ok(())
     }
 }

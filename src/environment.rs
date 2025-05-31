@@ -28,20 +28,17 @@ impl Environment {
         self.values.insert(name.to_string(), value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<Object, RuntimeError> {
-        if self.values.contains_key(name.get_lexeme()) {
-            Ok(self.values.get(name.get_lexeme()).unwrap().clone())
+    pub fn get(&self, name: &str) -> Result<Object, RuntimeError> {
+        if self.values.contains_key(name) {
+            Ok(self.values.get(name).unwrap().clone())
         } else if let Some(enclose) = self.enclosing.as_ref() {
             Ok(enclose.borrow().get(name)?)
         } else {
-            Err(RuntimeError(format!(
-                "Undefined variable: {}",
-                name.get_lexeme()
-            )))
+            Err(RuntimeError(format!("Undefined variable: {}", name)))
         }
     }
 
-    pub fn get_at(&self, distance: usize, name: &Token) -> Result<Object, RuntimeError> {
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<Object, RuntimeError> {
         if distance == 0 {
             self.get(name)
         } else {

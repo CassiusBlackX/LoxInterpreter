@@ -4,13 +4,14 @@ use crate::token::Token;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
     VarDecl(VarDecl),
-    ExprStmt(ExprStmt),
-    PrintStmt(PrintStmt),
+    Expr(ExprStmt),
+    Print(PrintStmt),
     Block(BlockStmt),
-    IfStmt(IfStmt),
-    WhileStmt(WhileStmt),
+    If(IfStmt),
+    While(WhileStmt),
     Function(FunctionStmt),
-    ReturnStmt(ReturnStmt),
+    Return(ReturnStmt),
+    Class(ClassStmt),
     Invalid,
 }
 
@@ -64,6 +65,13 @@ pub struct ReturnStmt {
     pub value: Box<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct ClassStmt {
+    pub name: Token,
+    pub super_class: Option<Box<Expr>>,
+    pub methods: Vec<Stmt>,
+}
+
 pub trait StmtVisitor<T> {
     fn visit_var_decl(&mut self, stmt: &VarDecl) -> T;
     fn visit_expr_stmt(&mut self, stmt: &ExprStmt) -> T;
@@ -73,19 +81,21 @@ pub trait StmtVisitor<T> {
     fn visit_while_stmt(&mut self, stmt: &WhileStmt) -> T;
     fn visit_function_stmt(&mut self, stmt: &FunctionStmt) -> T;
     fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> T;
+    fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> T;
 }
 
 impl Stmt {
     pub fn accept<T>(&self, visitor: &mut dyn StmtVisitor<T>) -> T {
         match self {
             Self::VarDecl(stmt) => visitor.visit_var_decl(stmt),
-            Self::ExprStmt(stmt) => visitor.visit_expr_stmt(stmt),
-            Self::PrintStmt(stmt) => visitor.visit_print_stmt(stmt),
+            Self::Expr(stmt) => visitor.visit_expr_stmt(stmt),
+            Self::Print(stmt) => visitor.visit_print_stmt(stmt),
             Self::Block(stmt) => visitor.visit_block_stmt(stmt),
-            Self::IfStmt(stmt) => visitor.visit_if_stmt(stmt),
-            Self::WhileStmt(stmt) => visitor.visit_while_stmt(stmt),
+            Self::If(stmt) => visitor.visit_if_stmt(stmt),
+            Self::While(stmt) => visitor.visit_while_stmt(stmt),
             Self::Function(stmt) => visitor.visit_function_stmt(stmt),
-            Self::ReturnStmt(stmt) => visitor.visit_return_stmt(stmt),
+            Self::Return(stmt) => visitor.visit_return_stmt(stmt),
+            Self::Class(stmt) => visitor.visit_class_stmt(stmt),
             Self::Invalid => panic!("Attempting to run an Invalid Statement!"),
         }
     }

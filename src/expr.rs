@@ -23,6 +23,10 @@ pub enum Expr {
     Assign(Assign),
     Logical(Logical),
     Call(Call),
+    Get(Get),
+    Set(Set),
+    This(This),
+    Super(Super),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -81,6 +85,34 @@ pub struct Call {
     pub arguments: Vec<Expr>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Get {
+    pub uuid: usize,
+    pub object: Box<Expr>,
+    pub name: Token,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Set {
+    pub uuid: usize,
+    pub object: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct This {
+    pub uuid: usize,
+    pub keyword: Token,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Super {
+    pub uuid: usize,
+    pub keyword: Token,
+    pub method: Token,
+}
+
 pub trait ExprVisitor<T> {
     fn visit_literal(&mut self, expr: &Literal) -> T;
     fn visit_variable(&mut self, expr: &Variable) -> T;
@@ -90,6 +122,10 @@ pub trait ExprVisitor<T> {
     fn visit_assign(&mut self, expr: &Assign) -> T;
     fn visit_logical(&mut self, expr: &Logical) -> T;
     fn visit_call(&mut self, expr: &Call) -> T;
+    fn visit_get(&mut self, expr: &Get) -> T;
+    fn visit_set(&mut self, expr: &Set) -> T;
+    fn visit_this(&mut self, expr: &This) -> T;
+    fn visit_super(&mut self, expr: &Super) -> T;
 }
 
 impl Expr {
@@ -103,6 +139,10 @@ impl Expr {
             Expr::Assign(expr) => visitor.visit_assign(expr),
             Expr::Logical(expr) => visitor.visit_logical(expr),
             Expr::Call(expr) => visitor.visit_call(expr),
+            Expr::Get(expr) => visitor.visit_get(expr),
+            Expr::Set(expr) => visitor.visit_set(expr),
+            Expr::This(expr) => visitor.visit_this(expr),
+            Expr::Super(expr) => visitor.visit_super(expr),
         }
     }
 
@@ -116,6 +156,10 @@ impl Expr {
             Self::Assign(e) => e.uuid,
             Self::Logical(e) => e.uuid,
             Self::Call(e) => e.uuid,
+            Self::Get(e) => e.uuid,
+            Self::Set(e) => e.uuid,
+            Self::This(e) => e.uuid,
+            Self::Super(e) => e.uuid,
         }
     }
 }

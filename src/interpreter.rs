@@ -82,12 +82,12 @@ impl Interpreter {
         if let Some(dis) = distance {
             self.environment
                 .borrow_mut()
-                .get_at(*dis, name)
+                .get_at(*dis, name.get_lexeme())
                 .map_err(RuntimeException::from)
         } else {
             self.globals
                 .borrow_mut()
-                .get(name)
+                .get(name.get_lexeme())
                 .map_err(RuntimeException::from)
         }
     }
@@ -202,11 +202,78 @@ impl ExprVisitor<Result<Object, RuntimeException>> for Interpreter {
         for argument in &expr.arguments {
             arguments.push(self.evalulate(argument)?);
         }
-        // TODO: unimplemented callable here
-        if let Object::Callables(Callables::Function(mut function)) = callee {
-            Ok(function.call(self, &arguments))
+        match callee {
+            Object::Callables(Callables::Function(mut function)) => {
+                if arguments.len() != function.arity() {
+                    Err(RuntimeException::RuntimeError(RuntimeError(format!(
+                        "Expect {} arguments, but got {}",
+                        function.arity(),
+                        arguments.len()
+                    ))))
+                } else {
+                    Ok(function.call(self, &arguments)?)
+                }
+            }
+            Object::Callables(Callables::Class(mut class)) => Ok(class.call(self, &arguments)?),
+            _ => Err(RuntimeException::RuntimeError(RuntimeError(
+                "Can only call function and class".to_string(),
+            ))),
+        }
+    }
+
+    fn visit_get(&mut self, expr: &Get) -> Result<Object, RuntimeException> {
+        let object = self.evalulate(&expr.object)?;
+        if let Object::Callables(Callables::Instance(instance)) = object {
+            Ok(instance
+                .borrow()
+                .get(&expr.name)
+                .map_err(RuntimeException::from)?)
         } else {
-            panic!("unimplemented!")
+            Err(RuntimeException::RuntimeError(RuntimeError(
+                "Onely instance have properties".to_string(),
+            )))
+        }
+    }
+
+    fn visit_set(&mut self, expr: &Set) -> Result<Object, RuntimeException> {
+        let object = self.evalulate(&expr.object)?;
+        if let Object::Callables(Callables::Instance(instance)) = object {
+            let value = self.evalulate(&expr.value)?;
+            instance.borrow_mut().set(&expr.name, value.clone());
+            Ok(value)
+        } else {
+            Err(RuntimeException::RuntimeError(RuntimeError(
+                "only instances have fields".to_string(),
+            )))
+        }
+    }
+
+    fn visit_this(&mut self, expr: &This) -> Result<Object, RuntimeException> {
+        self.lookup_variable(&expr.keyword, &Expr::This(expr.to_owned()))
+    }
+
+    fn visit_super(&mut self, expr: &Super) -> Result<Object, RuntimeException> {
+        let distance = self.locals.get(&Expr::Super(expr.clone())).unwrap();
+        let superclass = self.environment.borrow().get_at(*distance, "super")?;
+        let object = self.environment.borrow().get_at(*distance - 1, "this")?;
+        match (superclass, object) {
+            (
+                Object::Callables(Callables::Class(sc)),
+                Object::Callables(Callables::Instance(ins)),
+            ) => {
+                let method = sc.find_method(expr.method.get_lexeme()).map_err(|_| {
+                    RuntimeException::RuntimeError(RuntimeError(format!(
+                        "Undefined property '{}'",
+                        expr.method.get_lexeme()
+                    )))
+                })?;
+                Ok(Object::Callables(Callables::Function(
+                    method.bind(ins.clone()),
+                )))
+            }
+            (_, _) => Err(RuntimeException::RuntimeError(RuntimeError(
+                "should not reached in interpreter visit_super".to_string(),
+            ))),
         }
     }
 }
@@ -264,7 +331,8 @@ impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
     }
 
     fn visit_function_stmt(&mut self, stmt: &FunctionStmt) -> Result<(), RuntimeException> {
-        let func = Callables::Function(Function::new(stmt.clone(), self.environment.clone()));
+        let func =
+            Callables::Function(Function::new(stmt.clone(), self.environment.clone(), false));
         self.environment
             .borrow_mut()
             .define(stmt.name.get_lexeme(), Object::Callables(func));
@@ -272,15 +340,6 @@ impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
     }
 
     fn visit_return_stmt(&mut self, stmt: &ReturnStmt) -> Result<(), RuntimeException> {
-        // let value = if *stmt.value
-        //     != Expr::Literal(Literal {
-        //         uuid: _x,
-        //         value: Object::Nil,
-        //     }) {
-        //     self.evalulate(&stmt.value)?
-        // } else {
-        //     Object::Nil
-        // };
         let value = if let Expr::Literal(Literal {
             uuid: _x,
             value: Object::Nil,
@@ -291,5 +350,95 @@ impl StmtVisitor<Result<(), RuntimeException>> for Interpreter {
             self.evalulate(&stmt.value)?
         };
         Err(RuntimeException::Return_(value))
+    }
+
+    // fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Result<(), RuntimeException> {
+    //     let super_class;
+    //     match &stmt.super_class {
+    //         Some(x) => match self.evalulate(x) {
+    //             Ok(Object::Callables(Callables::Class(y))) => super_class = Some(Box::new(y)),
+    //             _ => {
+    //                 return Err(RuntimeException::RuntimeError(RuntimeError(
+    //                     "Superclass must be a class".to_string(),
+    //                 )));
+    //             }
+    //         },
+    //         None => super_class = None,
+    //     }
+    //
+    //     self.environment
+    //         .borrow_mut()
+    //         .define(stmt.name.get_lexeme(), Object::Nil);
+    //
+    //     let mut methods = HashMap::new();
+    //     for method in &stmt.methods {
+    //         if let Stmt::Function(meth) = method {
+    //             methods.insert(
+    //                 meth.name.get_lexeme().to_string(),
+    //                 Function::new(
+    //                     meth.to_owned(),
+    //                     self.environment.clone(),
+    //                     meth.name.get_lexeme() == "init",
+    //                 ),
+    //             );
+    //         }
+    //     }
+    //     let class = Class::new(stmt.name.get_lexeme().to_string(), methods, super_class);
+    //
+    //     self.environment
+    //         .borrow_mut()
+    //         .assign(&stmt.name, &Object::Callables(Callables::Class(class)))?;
+    //     Ok(())
+    // }
+
+    fn visit_class_stmt(&mut self, stmt: &ClassStmt) -> Result<(), RuntimeException> {
+        let super_class = stmt
+            .super_class
+            .as_ref()
+            .map(|expr| match self.evalulate(expr)? {
+                Object::Callables(Callables::Class(cls)) => Ok(Box::new(cls)),
+                _ => Err(RuntimeException::RuntimeError(RuntimeError(
+                    "Superclass must be a class".to_string(),
+                ))),
+            })
+            .transpose()?;
+
+        self.environment
+            .borrow_mut()
+            .define(stmt.name.get_lexeme(), Object::Nil);
+
+        if let Some(sc) = &super_class {
+            self.environment = Rc::new(RefCell::new(Environment::new_with_enclosing(
+                self.environment.clone(),
+            )));
+            self.environment
+                .borrow_mut()
+                .define("super", Object::Callables(Callables::Class(*sc.clone())));
+        }
+
+        let methods = stmt
+            .methods
+            .iter()
+            .filter_map(|method| {
+                if let Stmt::Function(meth) = method {
+                    Some((
+                        meth.name.get_lexeme().to_string(),
+                        Function::new(
+                            meth.to_owned(),
+                            self.environment.clone(),
+                            meth.name.get_lexeme() == "init",
+                        ),
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect::<HashMap<_, _>>();
+
+        let class = Class::new(stmt.name.get_lexeme().to_string(), methods, super_class);
+        self.environment
+            .borrow_mut()
+            .assign(&stmt.name, &Object::Callables(Callables::Class(class)))
+            .map_err(RuntimeException::from)
     }
 }
