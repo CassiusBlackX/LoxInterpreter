@@ -8,7 +8,7 @@
 
 Object Function::call(Interpreter *interpreter,
                       const std::vector<Object> &arguments) {
-  Environment environment = new Environment(interpreter->get_global());
+  Environment environment(interpreter->get_global());
   for (size_t i = 0; i < declaration->params.size(); i++) {
     environment.define(declaration->params.at(i).get_lexeme(), arguments.at(i));
   }
