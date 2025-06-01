@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "object.h"
+#include "token.h"
 
 #ifndef FLOAT_PRECISION
 #define FLOAT_PRECISION 4
@@ -42,6 +43,8 @@ bool Object::operator==(const Object &other) const {
   case Type::String:
   case Type::Identifer:
     return std::get<std::string>(value_) == std::get<std::string>(other.value_);
+  case Type::CallablePtr:
+    return std::get<Callable *>(value_) == std::get<Callable *>(other.value_);
   default:
     return false;
   }
@@ -60,6 +63,7 @@ Object::operator bool() const {
   switch (type_) {
   case Type::String:
   case Type::Number:
+  case Type::CallablePtr:
     return true;
   case Type::Nil:
     return false;
@@ -76,4 +80,11 @@ Object::operator std::nullptr_t() const {
     throw std::runtime_error("Cannot convert non-Nil LiteralType into Nil");
   }
   return std::get<std::nullptr_t>(value_);
+}
+
+Callable *Object::get_callable() const {
+  if (type_ == Type::CallablePtr) {
+    return std::get<Callable *>(value_);
+  }
+  return nullptr;
 }

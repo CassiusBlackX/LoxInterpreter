@@ -1,7 +1,9 @@
 #include "stmt.h"
 #include "environment.h"
 #include "error.h"
+#include "function.h"
 #include "interpreter.h"
+#include "object.h"
 #include <iostream>
 #include <vector>
 
@@ -24,17 +26,19 @@ void VarDecl::execute(Interpreter *interpreter) {
   interpreter->get_current()->define(name.get_lexeme(), value);
 }
 
-// TODO: unfixed here
-static void execute_block(const std::vector<Stmt *> &statements,
-                          Environment *env, Interpreter *interpreter) {
+void execute_block(const std::vector<Stmt *> &statements, Environment *env,
+                   Interpreter *interpreter) {
   Environment *previous = interpreter->get_current();
   try {
     *interpreter->set_current() = env;
     for (Stmt *statement : statements) {
       statement->execute(interpreter);
     }
-  } catch (RuntimeError e) {
+  } catch (RuntimeError &e) {
     *interpreter->set_current() = previous;
+    if (dynamic_cast<ReturnException*>(&e)) {
+      throw;
+    }
   }
   *interpreter->set_current() = previous;
 }
@@ -60,6 +64,21 @@ void WhileStmt::execute(Interpreter *interpreter) {
   while (static_cast<bool>(condition->evaluate(interpreter))) {
     body->execute(interpreter);
   }
+}
+
+void FuncStmt::execute(Interpreter *interpreter) {
+  // FIXME: a memory leak here!
+  // how do we free this space?
+  Function *function = new Function(this, false, interpreter->get_current());
+  interpreter->get_current()->define(name.get_lexeme(), function);
+}
+
+void ReturnStmt::execute(Interpreter *interpreter) {
+  Object return_value = Object();
+  if (value != nullptr) {
+    return_value = value->evaluate(interpreter);
+  }
+  throw ReturnException(return_value);
 }
 
 void delete_stmt(Stmt *stmt) {

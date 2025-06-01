@@ -41,7 +41,7 @@ set(SOURCE_FILES
   src/interpreter.cpp
   src/stmt.cpp
   src/environment.cpp
-  src/callable.cpp
+  src/function.cpp
 )
 
 add_definitions(

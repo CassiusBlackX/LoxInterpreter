@@ -26,6 +26,18 @@ private:
   Token token;
 };
 
+struct ReturnException : RuntimeError {
+  Object value;
+  ReturnException(const Object &value)
+      : value(value),
+        RuntimeError(Token(TokenType::Return, "return", 0), "return") {}
+  const char *what() {
+    static std::string formatted_str;
+    formatted_str = value.to_string();
+    return formatted_str.c_str();
+  }
+};
+
 void handle_runtime_error(const RuntimeError &e);
 
 #endif // ERROR_H_

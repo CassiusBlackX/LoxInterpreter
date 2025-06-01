@@ -4,6 +4,7 @@
 #include "object.h"
 #include <cassert>
 #include <initializer_list>
+#include <iostream>
 #include <string>
 #include <string_view>
 
@@ -13,7 +14,7 @@ static std::string parenthesize(const std::string_view name,
   result += name;
   for (const auto expr : exprs) {
     result += ' ';
-    result += expr->print();
+    result += expr->to_string();
   }
   return result + ')';
 }
@@ -32,31 +33,33 @@ static void check_number_operands(const Token &op, const Object &operand1,
   throw RuntimeError(op, "Operands must be two Number");
 }
 
-std::string Literal::print() const { return value.to_string(); }
+std::string Literal::to_string() const { return value.to_string(); }
 
-std::string Grouping::print() const { return parenthesize("group", {expr}); }
+std::string Grouping::to_string() const {
+  return parenthesize("group", {expr});
+}
 
-std::string Unary::print() const {
+std::string Unary::to_string() const {
   return parenthesize(op.get_lexeme(), {right});
 }
 
-std::string Binary::print() const {
+std::string Binary::to_string() const {
   return parenthesize(op.get_lexeme(), {left, right});
 }
 
-std::string Variable::print() const { return name.to_string(); }
+std::string Variable::to_string() const { return name.to_string(); }
 
-std::string Assign::print() const {
+std::string Assign::to_string() const {
   std::string identifier_name = target->name.get_lexeme();
   return parenthesize(identifier_name + " assignment", {value});
 }
 
-std::string Logical::print() const {
+std::string Logical::to_string() const {
   return parenthesize(op.get_lexeme(), {left, right});
 }
 
-std::string Call::print() const {
-  std::string func_name = callee->print();
+std::string Call::to_string() const {
+  std::string func_name = callee->to_string();
   return "Call " + func_name;
 }
 
@@ -166,30 +169,25 @@ Object Logical::evaluate(Interpreter *interpreter) {
 }
 
 Object Call::evaluate(Interpreter *interpreter) {
-  return Object();
-  // Object callee_value = callee->evaluate(interpreter);
-  // std::vector<Object> arguments_value;
-  // arguments_value.reserve(arguments.size());
-  // for (Expr *arg : arguments) {
-  //   arguments_value.push_back(arg->evaluate(interpreter));
-  // }
-  //
-  // if (auto callable = dynamic_cast<Callable *>(callee)) {
-  //   if (arguments_value.size() == callable->arity()) {
-  //     return callable->call(environment, arguments_value);
-  //   } else {
-  //     std::ostringstream oss;
-  //     oss << "Expected " << callable->arity() << " arguments, but got "
-  //         << arguments_value.size() << ".";
-  //     throw RuntimeError(paren, oss.str());
-  //   }
-  // } else {
-  //   throw RuntimeError(paren, "can only call functions and classes.");
-  // }
-}
+  Object callee_value = callee->evaluate(interpreter);
+  std::vector<Object> arguments_value;
+  arguments_value.reserve(arguments.size());
+  for (Expr *arg : arguments) {
+    arguments_value.push_back(arg->evaluate(interpreter));
+  }
 
-Object Call::call(Interpreter* interpreter, const std::vector<Object>& arguments) {
-  return Object();
+  if (Callable *callable = callee_value.get_callable()) {
+    if (arguments_value.size() == callable->arity()) {
+      return callable->call(interpreter, arguments_value);
+    } else {
+      std::ostringstream oss;
+      oss << "Expected " << callable->arity() << " arguments, but got "
+          << arguments_value.size() << ".";
+      throw RuntimeError(paren, oss.str());
+    }
+  } else {
+    throw RuntimeError(paren, "can only call functions and classes.");
+  }
 }
 
 void delete_expr(Expr *expr) {

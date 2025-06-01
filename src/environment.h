@@ -1,6 +1,7 @@
 #ifndef ENVIRONMENT_H_
 #define ENVIRONMENT_H_
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 
@@ -15,7 +16,12 @@ public:
   }
 
   Object get(const Token &name) const;
+  Object get_at(size_t distance, const std::string& name) ;
   void assign(const Token &tname, const Object &value);
+  void assign(size_t distance, const Token &name, const Object &value);
+
+private:
+  Environment* ancestor(size_t distance) ;
 
 private:
   // using string as key instead of Token

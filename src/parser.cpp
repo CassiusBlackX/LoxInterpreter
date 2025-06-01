@@ -1,19 +1,24 @@
 #include "parser.h"
 #include "error.h"
+#include "stmt.h"
+#include "token.h"
 #include <string>
 
 // program -> declaration* EOF ;
-// declaration -> varDecl | statement ;
+// declaration -> funcDecl | varDecl | statement ;
+// funcDecl -> "fun" function ;
+// function -> IDENTIFIER "(" parameters? ")" block;
+// parameters -> IDENTIFIER ("," IDENTIFIER )* ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
-// block -> "{" declaration* "}" ;
-// exprStmt -> expression ";" ;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | returnStmt
+// | block; block -> "{" declaration* "}" ; exprStmt -> expression ";" ;
 // printStmt -> "print" expression ";" ;
 // ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
 // whileStmt -> "while" "(" expression ")" statement ;
 // forStmt -> "for" "(" ( varDecl | exprStmt | ";")
 //             expression? ";"
 //             expression? ")" statement ;
+//  returnStmt -> "return" expression? ";" ;
 //
 // expression -> assignment;
 // assignment -> IDENTIFIER "=" assignment | | logic_or ;
@@ -22,7 +27,9 @@
 // equality -> comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term -> factor  ( ( "-" | "+" ) factor )* ;
-// unary -> ("!" | "-" ) unary | primary ;
+// unary -> ("!" | "-" ) unary | call;
+// call -> primary ( "(" arguments? ")" )* ;
+// arguments -> expression ( "," expression )* ;
 // primary ->? NUMBER | STRING | BOOL | NIL | "(" expression ")" | IDENTIFIER;
 
 static void token_error(Token token, std::string_view message) {
@@ -39,11 +46,32 @@ Stmt *Parser::declaration() {
   try {
     if (match({TokenType::Var}))
       return var_declaration();
+    if (match({TokenType::Fun}))
+      return function("function");
     return statement();
   } catch (const ParseError &e) {
     synchronize();
     return nullptr;
   }
+}
+
+Stmt *Parser::function(const std::string &kind) {
+  Token name = consume(TokenType::Identifier, "Expect " + kind + " name.");
+  consume(TokenType::LeftParen, "Expect '(' after " + kind + " name");
+  std::vector<Token> params;
+  if (!check(TokenType::RightParen)) {
+    do {
+      if (params.size() >= 255) {
+        error(peek(), "Can't have more than 255 parameters");
+      }
+      params.push_back(
+          consume(TokenType::Identifier, "Expect parameter name."));
+    } while (match({TokenType::Comma}));
+  }
+  consume(TokenType::RightParen, "Expect ')' after parameters");
+  consume(TokenType::LeftBrace, "Expect '{' before " + kind + " body");
+  std::vector<Stmt *> body = block();
+  return new FuncStmt(name, params, body);
 }
 
 Stmt *Parser::var_declaration() {
@@ -73,6 +101,9 @@ Stmt *Parser::statement() {
   if (match({TokenType::For})) {
     return for_statement();
   }
+  if (match({TokenType::Return})) {
+    return return_statement();
+  }
   return expression_statement();
 }
 
@@ -83,6 +114,16 @@ std::vector<Stmt *> Parser::block() {
   }
   consume(TokenType::RightBrace, "Expect '}' after block");
   return statements;
+}
+
+Stmt* Parser::return_statement() {
+  Token keyword = previous();
+  Expr* value = nullptr;
+  if (!check(TokenType::SemiColon)) {
+    value = expression();
+  }
+  consume(TokenType::SemiColon, "Expect ';' after return value");
+  return new ReturnStmt(keyword, value);
 }
 
 Stmt *Parser::if_statement() {

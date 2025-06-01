@@ -33,6 +33,7 @@ public:
   explicit operator double() const;
   explicit operator bool() const;
   explicit operator std::nullptr_t() const;
+  Callable* get_callable() const;
 
   friend std::ostream &operator<<(std::ostream &os, Object literal) {
     os << literal.to_string();

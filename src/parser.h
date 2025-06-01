@@ -1,15 +1,18 @@
 // program -> declaration* EOF ;
-// declaration -> varDecl | statement ;
+// declaration -> funcDecl | varDecl | statement ;
+// funcDecl -> "fun" function ;
+// function -> IDENTIFIER "(" parameters? ")" block;
+// parameters -> IDENTIFIER ("," IDENTIFIER )* ;
 // varDecl -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | block;
-// block -> "{" declaration* "}" ;
-// exprStmt -> expression ";" ;
+// statement -> exprStmt | ifStmt | whileStmt | forStmt | printStmt | returnStmt
+// | block; block -> "{" declaration* "}" ; exprStmt -> expression ";" ;
 // printStmt -> "print" expression ";" ;
 // ifStmt -> "if" "(" expression ")" statement ( "else" statement )? ;
 // whileStmt -> "while" "(" expression ")" statement ;
 // forStmt -> "for" "(" ( varDecl | exprStmt | ";")
 //             expression? ";"
 //             expression? ")" statement ;
+//  returnStmt -> "return" expression? ";" ;
 //
 // expression -> assignment;
 // assignment -> IDENTIFIER "=" assignment | | logic_or ;
@@ -36,7 +39,6 @@
 #include "stmt.h"
 #include "token.h"
 
-
 class Parser {
 public:
   Parser(const std::vector<Token> &tokens) : tokens(std::move(tokens)) {}
@@ -54,9 +56,11 @@ private:
 
 private:
   Stmt *declaration();
+  Stmt *function(const std::string &func_type);
   Stmt *var_declaration();
   Stmt *statement();
   std::vector<Stmt *> block();
+  Stmt *return_statement();
   Stmt *if_statement();
   Stmt *while_statement();
   Stmt *for_statement();
@@ -72,7 +76,7 @@ private:
   Expr *factor();
   Expr *unary();
   Expr *call();
-  Expr *finish_call(Expr* callee);
+  Expr *finish_call(Expr *callee);
   Expr *primary();
   Token advance();
   bool match(std::initializer_list<TokenType> types);
