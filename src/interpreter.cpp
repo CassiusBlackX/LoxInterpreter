@@ -25,6 +25,10 @@ Interpreter::Interpreter() {
   environment = globals = new Environment();
 }
 
+Interpreter::~Interpreter() {
+  delete environment;
+}
+
 void Interpreter::interpret(const std::vector<Stmt *> statements) {
   try {
     for (Stmt *statement : statements) {

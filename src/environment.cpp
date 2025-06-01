@@ -1,6 +1,8 @@
 #include "environment.h"
+#include "callable.h"
 #include "error.h"
 #include <cstddef>
+#include <iostream>
 
 Object Environment::get(const Token &name) const {
   if (values.contains(name.get_lexeme())) {
@@ -32,7 +34,8 @@ void Environment::assign(const Token &name, const Object &value) {
   throw RuntimeError(name, "Undefined variable '" + name.get_lexeme() + "'.");
 }
 
-void Environment::assign(size_t distance, const Token &name, const Object &value) {
+void Environment::assign(size_t distance, const Token &name,
+                         const Object &value) {
   return ancestor(distance)->assign(name, value);
 }
 
@@ -42,4 +45,12 @@ Environment *Environment::ancestor(size_t distance) {
     env = env->enclosing;
   }
   return env;
+}
+
+Environment::~Environment() {
+  for (auto &[name, obj] : values) {
+    if (Callable *callable = obj.get_callable()) {
+      delete callable;
+    }
+  }
 }

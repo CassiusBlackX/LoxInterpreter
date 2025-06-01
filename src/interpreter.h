@@ -9,6 +9,7 @@
 class Interpreter {
 public:
   Interpreter() ;
+  ~Interpreter() ;
   void interpret(const std::vector<Stmt *> statements);
 
   void enter_scope();

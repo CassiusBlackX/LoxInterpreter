@@ -1,6 +1,7 @@
 #include "stmt.h"
 #include "environment.h"
 #include "error.h"
+#include "expr.h"
 #include "function.h"
 #include "interpreter.h"
 #include "object.h"
@@ -97,7 +98,6 @@ void delete_stmt(Stmt *stmt) {
   } else if (auto block_stmt = dynamic_cast<Block *>(stmt)) {
     for (Stmt *stat : block_stmt->statements) {
       delete_stmt(stat);
-      stat = nullptr;
     }
   } else if (auto if_stmt = dynamic_cast<IfStmt *>(stmt)) {
     delete_expr(if_stmt->condition);
@@ -111,6 +111,13 @@ void delete_stmt(Stmt *stmt) {
     while_stmt->condition = nullptr;
     delete_stmt(while_stmt->body);
     while_stmt->body = nullptr;
+  } else if (auto func_stmt = dynamic_cast<FuncStmt*>(stmt)) {
+    for (Stmt* stat : func_stmt->body) {
+      delete_stmt(stat);
+    }
+  } else if (auto return_stmt = dynamic_cast<ReturnStmt*>(stmt)) {
+    delete_expr(return_stmt->value);
+    return_stmt->value = nullptr;
   }
   delete stmt;
   stmt = nullptr;

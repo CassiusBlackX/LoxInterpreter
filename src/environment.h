@@ -10,6 +10,7 @@
 class Environment {
 public:
   Environment() : enclosing(nullptr) {}
+  ~Environment();
   Environment(Environment *enclosing) : enclosing(enclosing) {}
   void define(const std::string &name, const Object &value) {
     values.insert({name, value});

@@ -215,6 +215,12 @@ void delete_expr(Expr *expr) {
     logical_expr->left = nullptr;
     delete_expr(logical_expr->right);
     logical_expr->right = nullptr;
+  } else if (auto call_expr = dynamic_cast<Call*>(expr)){
+    delete_expr(call_expr->callee);
+    call_expr->callee = nullptr;
+    for (Expr* arg : call_expr->arguments) {
+      delete_expr(arg);
+    }
   } else {
     // Literal has no child node, do nothing here
     // Variable has no child node, do nothing here

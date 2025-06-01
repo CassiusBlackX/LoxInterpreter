@@ -11,6 +11,7 @@ class Interpreter;
 
 class Callable {
 public:
+  virtual ~Callable()=default;
   virtual Object call(Interpreter *interpreter,
                       const std::vector<Object> &arguments) = 0;
   virtual size_t arity() const = 0;
